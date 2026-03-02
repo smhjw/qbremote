@@ -39,6 +39,13 @@ enum class TorrentFilter(val label: String) {
     }
 }
 
+enum class TorrentSort(val label: String) {
+    ACTIVITY_TIME("Activity time"),
+    ADDED_TIME("Added time"),
+    DOWNLOAD_SPEED("Download speed"),
+    UPLOAD_SPEED("Upload speed"),
+}
+
 data class MainUiState(
     val settings: ConnectionSettings = ConnectionSettings(),
     val isConnecting: Boolean = false,
@@ -47,6 +54,8 @@ data class MainUiState(
     val transferInfo: TransferInfo = TransferInfo(),
     val torrents: List<TorrentInfo> = emptyList(),
     val selectedFilter: TorrentFilter = TorrentFilter.ALL,
+    val selectedSort: TorrentSort = TorrentSort.ACTIVITY_TIME,
+    val sortDescending: Boolean = true,
     val pendingHashes: Set<String> = emptySet(),
     val errorMessage: String? = null,
 )
@@ -81,6 +90,14 @@ class MainViewModel(
 
     fun setFilter(filter: TorrentFilter) {
         _uiState.update { it.copy(selectedFilter = filter) }
+    }
+
+    fun setSort(sort: TorrentSort) {
+        _uiState.update { it.copy(selectedSort = sort) }
+    }
+
+    fun toggleSortDirection() {
+        _uiState.update { it.copy(sortDescending = !it.sortDescending) }
     }
 
     fun connect() {

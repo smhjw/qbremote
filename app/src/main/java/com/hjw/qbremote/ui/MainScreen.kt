@@ -54,8 +54,14 @@ import com.hjw.qbremote.data.model.TransferInfo
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val filteredTorrents = remember(state.torrents, state.selectedFilter) {
-        state.torrents.filter { state.selectedFilter.matches(it) }
+    val visibleTorrents = remember(
+        state.torrents,
+        state.selectedFilter,
+        state.selectedSort,
+        state.sortDescending,
+    ) {
+        val filtered = state.torrents.filter { state.selectedFilter.matches(it) }
+        sortTorrents(filtered, state.selectedSort, state.sortDescending)
     }
 
     LaunchedEffect(state.errorMessage) {
@@ -105,8 +111,17 @@ fun MainScreen(viewModel: MainViewModel) {
                     )
                 }
 
+                item {
+                    SortRow(
+                        selected = state.selectedSort,
+                        descending = state.sortDescending,
+                        onSelect = viewModel::setSort,
+                        onToggleDirection = viewModel::toggleSortDirection,
+                    )
+                }
+
                 items(
-                    items = filteredTorrents,
+                    items = visibleTorrents,
                     key = { it.hash.ifBlank { it.name } },
                 ) { torrent ->
                     TorrentCard(
@@ -380,6 +395,9 @@ private fun TorrentCard(
             Text("Up ${formatSpeed(torrent.uploadSpeed)}   Down ${formatSpeed(torrent.downloadSpeed)}")
             Text("Seed/Leech: ${torrent.seeders}/${torrent.leechers}   Complete/Incomp: ${torrent.numComplete}/${torrent.numIncomplete}")
             Text("Added: ${formatAddedOn(torrent.addedOn)}")
+            if (torrent.lastActivity > 0) {
+                Text("Last activity: ${formatAddedOn(torrent.lastActivity)}")
+            }
         }
     }
 
@@ -421,6 +439,44 @@ private fun TorrentCard(
     }
 }
 
+@Composable
+private fun SortRow(
+    selected: TorrentSort,
+    descending: Boolean,
+    onSelect: (TorrentSort) -> Unit,
+    onToggleDirection: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Sort", fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onToggleDirection) {
+                    Text(if (descending) "DESC" else "ASC")
+                }
+            }
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp),
+        ) {
+            items(TorrentSort.entries) { sort ->
+                FilterChip(
+                    selected = selected == sort,
+                    onClick = { onSelect(sort) },
+                    label = { Text(sort.label) },
+                )
+            }
+        }
+    }
+}
+
 private fun isPausedState(state: String): Boolean {
     return state.lowercase() in setOf("pauseddl", "pausedup")
 }
@@ -430,4 +486,18 @@ private fun isActiveTransferState(state: String): Boolean {
         "downloading", "forceddl", "stalleddl", "metadl",
         "uploading", "forcedup", "stalledup"
     )
+}
+
+private fun sortTorrents(
+    torrents: List<TorrentInfo>,
+    sort: TorrentSort,
+    descending: Boolean,
+): List<TorrentInfo> {
+    val comparator = when (sort) {
+        TorrentSort.ACTIVITY_TIME -> compareBy<TorrentInfo> { it.lastActivity }
+        TorrentSort.ADDED_TIME -> compareBy<TorrentInfo> { it.addedOn }
+        TorrentSort.DOWNLOAD_SPEED -> compareBy<TorrentInfo> { it.downloadSpeed }
+        TorrentSort.UPLOAD_SPEED -> compareBy<TorrentInfo> { it.uploadSpeed }
+    }
+    return if (descending) torrents.sortedWith(comparator.reversed()) else torrents.sortedWith(comparator)
 }

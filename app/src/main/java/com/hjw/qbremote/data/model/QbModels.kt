@@ -21,6 +21,7 @@ data class TorrentInfo(
     @SerializedName("downloaded") val downloaded: Long = 0,
     @SerializedName("uploaded") val uploaded: Long = 0,
     @SerializedName("added_on") val addedOn: Long = 0,
+    @SerializedName("last_activity") val lastActivity: Long = 0,
     @SerializedName("eta") val eta: Long = 0,
     @SerializedName("num_seeds") val seeders: Int = 0,
     @SerializedName("num_leechs") val leechers: Int = 0,

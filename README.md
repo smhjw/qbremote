@@ -9,6 +9,7 @@ Android remote control app for qBittorrent WebUI.
 - Torrent list with progress, rates, and status labels
 - Torrent actions: `Pause`, `Resume`, `Delete` (with or without files)
 - Status filters: `All`, `Downloading`, `Seeding`, `Paused`, `Completed`, `Error`
+- Sorting options: `Activity time`, `Added time`, `Upload speed`, `Download speed` (ASC/DESC)
 - Auto refresh with configurable interval
 
 ## Reliability and Security Improvements
