@@ -20,6 +20,7 @@ data class ConnectionSettings(
     val username: String = "admin",
     val password: String = "",
     val refreshSeconds: Int = 3,
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
     val showSpeedTotals: Boolean = true,
     val enableServerGrouping: Boolean = true,
     val showChartPanel: Boolean = true,
@@ -45,6 +46,12 @@ enum class ChartSortMode {
     TORRENT_COUNT,
 }
 
+enum class AppLanguage {
+    SYSTEM,
+    ZH_CN,
+    EN,
+}
+
 class ConnectionStore(private val context: Context) {
     private val secureCredentials = SecureCredentialStore(context)
 
@@ -55,6 +62,7 @@ class ConnectionStore(private val context: Context) {
         val Username = stringPreferencesKey("username")
         val PasswordLegacy = stringPreferencesKey("password")
         val RefreshSeconds = intPreferencesKey("refresh_seconds")
+        val AppLanguage = stringPreferencesKey("app_language")
         val ShowSpeedTotals = booleanPreferencesKey("show_speed_totals")
         val EnableServerGrouping = booleanPreferencesKey("enable_server_grouping")
         val ShowChartPanel = booleanPreferencesKey("show_chart_panel")
@@ -76,6 +84,7 @@ class ConnectionStore(private val context: Context) {
             pref[Keys.UseHttps] = settings.useHttps
             pref[Keys.Username] = settings.username
             pref[Keys.RefreshSeconds] = settings.refreshSeconds
+            pref[Keys.AppLanguage] = settings.appLanguage.name
             pref[Keys.ShowSpeedTotals] = settings.showSpeedTotals
             pref[Keys.EnableServerGrouping] = settings.enableServerGrouping
             pref[Keys.ShowChartPanel] = settings.showChartPanel
@@ -104,6 +113,9 @@ class ConnectionStore(private val context: Context) {
             username = this[Keys.Username] ?: "admin",
             password = securePassword,
             refreshSeconds = this[Keys.RefreshSeconds] ?: 3,
+            appLanguage = runCatching {
+                enumValueOf<AppLanguage>(this[Keys.AppLanguage].orEmpty())
+            }.getOrDefault(AppLanguage.SYSTEM),
             showSpeedTotals = this[Keys.ShowSpeedTotals] ?: true,
             enableServerGrouping = this[Keys.EnableServerGrouping] ?: true,
             showChartPanel = this[Keys.ShowChartPanel] ?: true,

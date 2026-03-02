@@ -1,4 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">QB Remote</string>
+    <string name="top_title">qB Remote</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_show_speed_totals">Show speed totals</string>
+    <string name="settings_enable_server_grouping">Enable server grouping</string>
+    <string name="settings_show_chart_panel">Show chart panel</string>
+    <string name="settings_show_site_name">Show site name in chart</string>
+    <string name="settings_chart_sort_mode">Chart sort mode</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">Follow system</string>
+    <string name="settings_language_zh_cn">简体中文</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_delete_when_no_seeders">Delete files by default when no seeders</string>
+    <string name="settings_delete_by_default">Delete files by default</string>
+    <string name="done">Done</string>
+
+    <string name="connect_first_hint">Connect first to load torrent list.</string>
+    <string name="connection_title">Connection</string>
+    <string name="connection_host_label">Host / IP</string>
+    <string name="connection_host_hint">Example: 192.168.1.12</string>
+    <string name="connection_port_label">Port</string>
+    <string name="connection_refresh_label">Refresh (s)</string>
+    <string name="connection_username_label">Username</string>
+    <string name="connection_password_label">Password</string>
+    <string name="connection_https_label">HTTPS</string>
+    <string name="connect">Connect</string>
+    <string name="connecting">Connecting...</string>
+
+    <string name="global_transfer_title">Global transfer</string>
+    <string name="refresh">Refresh</string>
+    <string name="refreshing">Refreshing...</string>
+    <string name="global_down_fmt">Down: %1$s</string>
+    <string name="global_up_fmt">Up: %1$s</string>
+    <string name="global_total_down_fmt">Total down: %1$s</string>
+    <string name="global_total_up_fmt">Total up: %1$s</string>
+    <string name="global_dht_torrents_fmt">DHT: %1$d  |  Torrents: %2$d</string>
+
+    <string name="chart_panel_title_fmt">Chart panel (%1$s)</string>
+    <string name="chart_no_data">No chart data.</string>
+    <string name="chart_sort_total_speed">Total speed</string>
+    <string name="chart_sort_download_speed">Download speed</string>
+    <string name="chart_sort_upload_speed">Upload speed</string>
+    <string name="chart_sort_torrent_count">Torrent count</string>
+    <string name="chart_metric_total_fmt">Total: %1$s</string>
+    <string name="chart_metric_down_fmt">Down: %1$s</string>
+    <string name="chart_metric_up_fmt">Up: %1$s</string>
+    <string name="chart_metric_torrents_fmt">Torrents: %1$d</string>
+
+    <string name="filter_all">All</string>
+    <string name="filter_downloading">Downloading</string>
+    <string name="filter_seeding">Seeding</string>
+    <string name="filter_paused">Paused</string>
+    <string name="filter_completed">Completed</string>
+    <string name="filter_error">Error</string>
+
+    <string name="sort_title">Sort</string>
+    <string name="sort_asc">ASC</string>
+    <string name="sort_desc">DESC</string>
+    <string name="sort_activity_time">Activity time</string>
+    <string name="sort_added_time">Added time</string>
+    <string name="sort_download_speed">Download speed</string>
+    <string name="sort_upload_speed">Upload speed</string>
+
+    <string name="state_downloading">Downloading</string>
+    <string name="state_seeding">Seeding</string>
+    <string name="state_paused">Paused</string>
+    <string name="state_error">Error</string>
+    <string name="state_queued">Queued</string>
+
+    <string name="no_tags">No tags</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete_files">Delete files</string>
+    <string name="delete_torrent_title">Delete torrent?</string>
+    <string name="delete_torrent_desc">Choose whether to delete downloaded files together.</string>
+
+    <string name="site_group_header">%1$s (%2$d)</string>
+    <string name="site_fmt">Site: %1$s</string>
+    <string name="size_downloaded_fmt">Size: %1$s  Downloaded: %2$s</string>
+    <string name="up_down_fmt">Up %1$s   Down %2$s</string>
+    <string name="seed_leech_complete_fmt">Seed/Leech: %1$d/%2$d   Complete/Incomp: %3$d/%4$d</string>
+    <string name="added_fmt">Added: %1$s</string>
+    <string name="last_activity_fmt">Last activity: %1$s</string>
 </resources>

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -45,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import com.hjw.qbremote.data.AppLanguage
+import com.hjw.qbremote.R
 import com.hjw.qbremote.data.ChartSortMode
 import com.hjw.qbremote.data.ConnectionSettings
 import com.hjw.qbremote.data.model.TorrentInfo
@@ -105,10 +107,10 @@ fun MainScreen(viewModel: MainViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("qB Remote") },
+                title = { Text(stringResource(R.string.top_title)) },
                 actions = {
                     TextButton(onClick = { showSettingsDialog = true }) {
-                        Text("Settings")
+                        Text(stringResource(R.string.settings_title))
                     }
                 },
             )
@@ -176,7 +178,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     groupedTorrents.forEach { (site, siteTorrents) ->
                         item(key = "group_header_$site") {
                             Text(
-                                text = "$site (${siteTorrents.size})",
+                                text = stringResource(R.string.site_group_header, site, siteTorrents.size),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
@@ -221,7 +223,7 @@ fun MainScreen(viewModel: MainViewModel) {
             } else {
                 item {
                     Text(
-                        text = "Connect first to load torrent list.",
+                        text = stringResource(R.string.connect_first_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(6.dp),
@@ -235,6 +237,7 @@ fun MainScreen(viewModel: MainViewModel) {
         SettingsDialog(
             settings = state.settings,
             onDismiss = { showSettingsDialog = false },
+            onAppLanguageChange = viewModel::updateAppLanguage,
             onShowSpeedTotalsChange = viewModel::updateShowSpeedTotals,
             onEnableServerGroupingChange = viewModel::updateEnableServerGrouping,
             onShowChartPanelChange = viewModel::updateShowChartPanel,
@@ -269,15 +272,15 @@ private fun ConnectionCard(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Connection", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.connection_title), fontWeight = FontWeight.SemiBold)
 
             OutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = state.settings.host,
                 onValueChange = onHostChange,
                 singleLine = true,
-                label = { Text("Host / IP") },
-                placeholder = { Text("Example: 192.168.1.12") },
+                label = { Text(stringResource(R.string.connection_host_label)) },
+                placeholder = { Text(stringResource(R.string.connection_host_hint)) },
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -286,7 +289,7 @@ private fun ConnectionCard(
                     value = if (state.settings.port == 0) "" else state.settings.port.toString(),
                     onValueChange = onPortChange,
                     singleLine = true,
-                    label = { Text("Port") },
+                    label = { Text(stringResource(R.string.connection_port_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
 
@@ -295,7 +298,7 @@ private fun ConnectionCard(
                     value = state.settings.refreshSeconds.toString(),
                     onValueChange = onRefreshSecondsChange,
                     singleLine = true,
-                    label = { Text("Refresh (s)") },
+                    label = { Text(stringResource(R.string.connection_refresh_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
             }
@@ -305,7 +308,7 @@ private fun ConnectionCard(
                 value = state.settings.username,
                 onValueChange = onUserChange,
                 singleLine = true,
-                label = { Text("Username") },
+                label = { Text(stringResource(R.string.connection_username_label)) },
             )
 
             OutlinedTextField(
@@ -313,7 +316,7 @@ private fun ConnectionCard(
                 value = state.settings.password,
                 onValueChange = onPasswordChange,
                 singleLine = true,
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.connection_password_label)) },
                 visualTransformation = PasswordVisualTransformation(),
             )
 
@@ -321,7 +324,7 @@ private fun ConnectionCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("HTTPS")
+                Text(stringResource(R.string.connection_https_label))
                 Switch(
                     checked = state.settings.useHttps,
                     onCheckedChange = onHttpsChange,
@@ -332,7 +335,13 @@ private fun ConnectionCard(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onConnect, enabled = !state.isConnecting) {
-                        Text(if (state.isConnecting) "Connecting..." else "Connect")
+                        Text(
+                            if (state.isConnecting) {
+                                stringResource(R.string.connecting)
+                            } else {
+                                stringResource(R.string.connect)
+                            }
+                        )
                     }
                 }
             }
@@ -364,23 +373,29 @@ private fun TransferSummaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Global transfer", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.global_transfer_title), fontWeight = FontWeight.Bold)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onRefresh, enabled = !refreshing) {
-                        Text(if (refreshing) "Refreshing..." else "Refresh")
+                        Text(
+                            if (refreshing) {
+                                stringResource(R.string.refreshing)
+                            } else {
+                                stringResource(R.string.refresh)
+                            }
+                        )
                     }
                 }
             }
-            Text("Down: ${formatSpeed(transferInfo.downloadSpeed)}")
-            Text("Up: ${formatSpeed(transferInfo.uploadSpeed)}")
+            Text(stringResource(R.string.global_down_fmt, formatSpeed(transferInfo.downloadSpeed)))
+            Text(stringResource(R.string.global_up_fmt, formatSpeed(transferInfo.uploadSpeed)))
             if (showTotals) {
-                Text("Total down: ${formatBytes(transferInfo.downloadedTotal)}")
-                Text("Total up: ${formatBytes(transferInfo.uploadedTotal)}")
+                Text(stringResource(R.string.global_total_down_fmt, formatBytes(transferInfo.downloadedTotal)))
+                Text(stringResource(R.string.global_total_up_fmt, formatBytes(transferInfo.uploadedTotal)))
             }
-            Text("DHT: ${transferInfo.dhtNodes}  |  Torrents: $torrentCount")
+            Text(stringResource(R.string.global_dht_torrents_fmt, transferInfo.dhtNodes, torrentCount))
         }
     }
 }
@@ -404,13 +419,13 @@ private fun ChartPanelCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "Chart panel (${chartSortModeLabel(chartSortMode)})",
+                text = stringResource(R.string.chart_panel_title_fmt, chartSortModeLabel(chartSortMode)),
                 fontWeight = FontWeight.SemiBold,
             )
 
             if (entries.isEmpty()) {
                 Text(
-                    text = "No chart data.",
+                    text = stringResource(R.string.chart_no_data),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 return@Column
@@ -460,7 +475,7 @@ private fun FilterRow(
             FilterChip(
                 selected = selected == filter,
                 onClick = { onSelect(filter) },
-                label = { Text(filter.label) },
+                label = { Text(filterLabel(filter)) },
             )
         }
     }
@@ -509,13 +524,13 @@ private fun TorrentCard(
             ) {
                 AssistChip(
                     onClick = {},
-                    label = { Text(stateLabel(torrent.state)) },
+                    label = { Text(localizedTorrentStateLabel(torrent.state)) },
                     colors = AssistChipDefaults.assistChipColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
                     ),
                 )
 
-                val tagLabel = torrent.tags.ifBlank { "No tags" }
+                val tagLabel = torrent.tags.ifBlank { stringResource(R.string.no_tags) }
                 AssistChip(
                     onClick = {},
                     label = { Text(tagLabel) },
@@ -540,12 +555,12 @@ private fun TorrentCard(
             ) {
                 if (canPause) {
                     TextButton(onClick = onPause, enabled = !isPending) {
-                        Text("Pause")
+                        Text(stringResource(R.string.pause))
                     }
                 }
                 if (canResume) {
                     TextButton(onClick = onResume, enabled = !isPending) {
-                        Text("Resume")
+                        Text(stringResource(R.string.resume))
                     }
                 }
                 TextButton(
@@ -556,18 +571,18 @@ private fun TorrentCard(
                     },
                     enabled = !isPending,
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             }
 
             HorizontalDivider()
-            Text("Site: ${trackerSiteName(torrent.tracker)}")
-            Text("Size: ${formatBytes(torrent.size)}  Downloaded: ${formatBytes(torrent.downloaded)}")
-            Text("Up ${formatSpeed(torrent.uploadSpeed)}   Down ${formatSpeed(torrent.downloadSpeed)}")
-            Text("Seed/Leech: ${torrent.seeders}/${torrent.leechers}   Complete/Incomp: ${torrent.numComplete}/${torrent.numIncomplete}")
-            Text("Added: ${formatAddedOn(torrent.addedOn)}")
+            Text(stringResource(R.string.site_fmt, trackerSiteName(torrent.tracker)))
+            Text(stringResource(R.string.size_downloaded_fmt, formatBytes(torrent.size), formatBytes(torrent.downloaded)))
+            Text(stringResource(R.string.up_down_fmt, formatSpeed(torrent.uploadSpeed), formatSpeed(torrent.downloadSpeed)))
+            Text(stringResource(R.string.seed_leech_complete_fmt, torrent.seeders, torrent.leechers, torrent.numComplete, torrent.numIncomplete))
+            Text(stringResource(R.string.added_fmt, formatAddedOn(torrent.addedOn)))
             if (torrent.lastActivity > 0) {
-                Text("Last activity: ${formatAddedOn(torrent.lastActivity)}")
+                Text(stringResource(R.string.last_activity_fmt, formatAddedOn(torrent.lastActivity)))
             }
         }
     }
@@ -575,10 +590,10 @@ private fun TorrentCard(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete torrent?") },
+            title = { Text(stringResource(R.string.delete_torrent_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Choose whether to delete downloaded files together.")
+                    Text(stringResource(R.string.delete_torrent_desc))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -587,7 +602,7 @@ private fun TorrentCard(
                             checked = deleteFilesChecked,
                             onCheckedChange = { deleteFilesChecked = it },
                         )
-                        Text("Delete files")
+                        Text(stringResource(R.string.delete_files))
                     }
                 }
             },
@@ -599,12 +614,12 @@ private fun TorrentCard(
                     },
                     enabled = !isPending,
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             },
         )
@@ -623,13 +638,13 @@ private fun SortRow(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Sort", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.sort_title), fontWeight = FontWeight.SemiBold)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
                 TextButton(onClick = onToggleDirection) {
-                    Text(if (descending) "DESC" else "ASC")
+                    Text(if (descending) stringResource(R.string.sort_desc) else stringResource(R.string.sort_asc))
                 }
             }
         }
@@ -642,7 +657,7 @@ private fun SortRow(
                 FilterChip(
                     selected = selected == sort,
                     onClick = { onSelect(sort) },
-                    label = { Text(sort.label) },
+                    label = { Text(sortLabel(sort)) },
                 )
             }
         }
@@ -653,6 +668,7 @@ private fun SortRow(
 private fun SettingsDialog(
     settings: ConnectionSettings,
     onDismiss: () -> Unit,
+    onAppLanguageChange: (AppLanguage) -> Unit,
     onShowSpeedTotalsChange: (Boolean) -> Unit,
     onEnableServerGroupingChange: (Boolean) -> Unit,
     onShowChartPanelChange: (Boolean) -> Unit,
@@ -661,11 +677,12 @@ private fun SettingsDialog(
     onDeleteFilesWhenNoSeedersChange: (Boolean) -> Unit,
     onDeleteFilesDefaultChange: (Boolean) -> Unit,
 ) {
+    var showLanguageMenu by remember { mutableStateOf(false) }
     var showChartSortMenu by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Settings") },
+        title = { Text(stringResource(R.string.settings_title)) },
         text = {
             Column(
                 modifier = Modifier
@@ -674,23 +691,52 @@ private fun SettingsDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_language),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Box {
+                        TextButton(onClick = { showLanguageMenu = true }) {
+                            Text(appLanguageLabel(settings.appLanguage))
+                        }
+                        DropdownMenu(
+                            expanded = showLanguageMenu,
+                            onDismissRequest = { showLanguageMenu = false },
+                        ) {
+                            AppLanguage.entries.forEach { language ->
+                                DropdownMenuItem(
+                                    text = { Text(appLanguageLabel(language)) },
+                                    onClick = {
+                                        onAppLanguageChange(language)
+                                        showLanguageMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
                 SettingSwitchRow(
-                    title = "Show speed totals",
+                    title = stringResource(R.string.settings_show_speed_totals),
                     checked = settings.showSpeedTotals,
                     onCheckedChange = onShowSpeedTotalsChange,
                 )
                 SettingSwitchRow(
-                    title = "Enable server grouping",
+                    title = stringResource(R.string.settings_enable_server_grouping),
                     checked = settings.enableServerGrouping,
                     onCheckedChange = onEnableServerGroupingChange,
                 )
                 SettingSwitchRow(
-                    title = "Show chart panel",
+                    title = stringResource(R.string.settings_show_chart_panel),
                     checked = settings.showChartPanel,
                     onCheckedChange = onShowChartPanelChange,
                 )
                 SettingSwitchRow(
-                    title = "Show site name in chart",
+                    title = stringResource(R.string.settings_show_site_name),
                     checked = settings.chartShowSiteName,
                     onCheckedChange = onChartShowSiteNameChange,
                 )
@@ -700,7 +746,7 @@ private fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Chart sort mode",
+                        text = stringResource(R.string.settings_chart_sort_mode),
                         modifier = Modifier.weight(1f),
                     )
                     Box {
@@ -727,12 +773,12 @@ private fun SettingsDialog(
                 HorizontalDivider()
 
                 SettingSwitchRow(
-                    title = "Delete files by default when no seeders",
+                    title = stringResource(R.string.settings_delete_when_no_seeders),
                     checked = settings.deleteFilesWhenNoSeeders,
                     onCheckedChange = onDeleteFilesWhenNoSeedersChange,
                 )
                 SettingSwitchRow(
-                    title = "Delete files by default",
+                    title = stringResource(R.string.settings_delete_by_default),
                     checked = settings.deleteFilesDefault,
                     onCheckedChange = onDeleteFilesDefaultChange,
                 )
@@ -740,7 +786,7 @@ private fun SettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(R.string.done))
             }
         },
     )
@@ -764,6 +810,40 @@ private fun SettingSwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
         )
+    }
+}
+
+@Composable
+private fun filterLabel(filter: TorrentFilter): String {
+    return when (filter) {
+        TorrentFilter.ALL -> stringResource(R.string.filter_all)
+        TorrentFilter.DOWNLOADING -> stringResource(R.string.filter_downloading)
+        TorrentFilter.SEEDING -> stringResource(R.string.filter_seeding)
+        TorrentFilter.PAUSED -> stringResource(R.string.filter_paused)
+        TorrentFilter.COMPLETED -> stringResource(R.string.filter_completed)
+        TorrentFilter.ERROR -> stringResource(R.string.filter_error)
+    }
+}
+
+@Composable
+private fun sortLabel(sort: TorrentSort): String {
+    return when (sort) {
+        TorrentSort.ACTIVITY_TIME -> stringResource(R.string.sort_activity_time)
+        TorrentSort.ADDED_TIME -> stringResource(R.string.sort_added_time)
+        TorrentSort.DOWNLOAD_SPEED -> stringResource(R.string.sort_download_speed)
+        TorrentSort.UPLOAD_SPEED -> stringResource(R.string.sort_upload_speed)
+    }
+}
+
+@Composable
+private fun localizedTorrentStateLabel(state: String): String {
+    return when (state.lowercase()) {
+        "downloading", "stalleddl", "forceddl", "metadl" -> stringResource(R.string.state_downloading)
+        "uploading", "stalledup", "forcedup" -> stringResource(R.string.state_seeding)
+        "pauseddl", "pausedup" -> stringResource(R.string.state_paused)
+        "error", "missingfiles" -> stringResource(R.string.state_error)
+        "queueddl", "queuedup" -> stringResource(R.string.state_queued)
+        else -> state
     }
 }
 
@@ -819,21 +899,44 @@ private fun chartMetric(entry: SiteChartEntry, mode: ChartSortMode): Long {
     }
 }
 
+@Composable
 private fun chartMetricText(entry: SiteChartEntry, mode: ChartSortMode): String {
     return when (mode) {
-        ChartSortMode.TOTAL_SPEED -> "Total: ${formatSpeed(entry.totalSpeed)}"
-        ChartSortMode.DOWNLOAD_SPEED -> "Down: ${formatSpeed(entry.downloadSpeed)}"
-        ChartSortMode.UPLOAD_SPEED -> "Up: ${formatSpeed(entry.uploadSpeed)}"
-        ChartSortMode.TORRENT_COUNT -> "Torrents: ${entry.torrentCount}"
+        ChartSortMode.TOTAL_SPEED -> stringResource(
+            R.string.chart_metric_total_fmt,
+            formatSpeed(entry.totalSpeed)
+        )
+        ChartSortMode.DOWNLOAD_SPEED -> stringResource(
+            R.string.chart_metric_down_fmt,
+            formatSpeed(entry.downloadSpeed)
+        )
+        ChartSortMode.UPLOAD_SPEED -> stringResource(
+            R.string.chart_metric_up_fmt,
+            formatSpeed(entry.uploadSpeed)
+        )
+        ChartSortMode.TORRENT_COUNT -> stringResource(
+            R.string.chart_metric_torrents_fmt,
+            entry.torrentCount
+        )
     }
 }
 
+@Composable
 private fun chartSortModeLabel(mode: ChartSortMode): String {
     return when (mode) {
-        ChartSortMode.TOTAL_SPEED -> "Total speed"
-        ChartSortMode.DOWNLOAD_SPEED -> "Download speed"
-        ChartSortMode.UPLOAD_SPEED -> "Upload speed"
-        ChartSortMode.TORRENT_COUNT -> "Torrent count"
+        ChartSortMode.TOTAL_SPEED -> stringResource(R.string.chart_sort_total_speed)
+        ChartSortMode.DOWNLOAD_SPEED -> stringResource(R.string.chart_sort_download_speed)
+        ChartSortMode.UPLOAD_SPEED -> stringResource(R.string.chart_sort_upload_speed)
+        ChartSortMode.TORRENT_COUNT -> stringResource(R.string.chart_sort_torrent_count)
+    }
+}
+
+@Composable
+private fun appLanguageLabel(language: AppLanguage): String {
+    return when (language) {
+        AppLanguage.SYSTEM -> stringResource(R.string.settings_language_system)
+        AppLanguage.ZH_CN -> stringResource(R.string.settings_language_zh_cn)
+        AppLanguage.EN -> stringResource(R.string.settings_language_en)
     }
 }
 

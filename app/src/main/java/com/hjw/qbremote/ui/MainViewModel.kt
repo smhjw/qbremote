@@ -3,6 +3,7 @@ package com.hjw.qbremote.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.hjw.qbremote.data.AppLanguage
 import com.hjw.qbremote.data.ChartSortMode
 import com.hjw.qbremote.data.ConnectionSettings
 import com.hjw.qbremote.data.ConnectionStore
@@ -91,6 +92,10 @@ class MainViewModel(
 
     fun updateShowSpeedTotals(value: Boolean) = updateAndPersistSettings {
         it.copy(showSpeedTotals = value)
+    }
+
+    fun updateAppLanguage(value: AppLanguage) = updateAndPersistSettings {
+        it.copy(appLanguage = value)
     }
 
     fun updateEnableServerGrouping(value: Boolean) = updateAndPersistSettings {
