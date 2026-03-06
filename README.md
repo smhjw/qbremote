@@ -114,7 +114,7 @@ Rename-Item "app/build/outputs/apk/debug/app-debug.apk" "qbremote.apk"
 
 ## qBittorrent WebUI Setup
 
-In desktop qBittorrent:
+---
 
 1. Open `Tools -> Options -> Web UI`
 2. Enable `Web User Interface (Remote control)`

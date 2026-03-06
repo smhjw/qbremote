@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 enum class RefreshScene {
     DASHBOARD,
@@ -272,6 +273,7 @@ class MainViewModel(
                             torrents = data.torrents,
                         )
                     }
+                    refreshServerVersion()
                 }
                 .onFailure { error ->
                     _uiState.update {

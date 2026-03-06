@@ -2,6 +2,7 @@ package com.hjw.qbremote.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -446,5 +447,52 @@ class ConnectionStore(private val context: Context) {
             deleteFilesDefault = this[Keys.DeleteFilesDefault] ?: true,
             deleteFilesWhenNoSeeders = this[Keys.DeleteFilesWhenNoSeeders] ?: false,
         )
+    }
+
+    private fun syncActiveProfileFromSettings(
+        pref: MutablePreferences,
+        settings: ConnectionSettings,
+    ) {
+        val activeId = pref[Keys.ActiveServerProfileId].orEmpty()
+        if (activeId.isBlank()) return
+
+        val profiles = decodeServerProfiles(pref[Keys.ServerProfilesJson].orEmpty()).toMutableList()
+        val index = profiles.indexOfFirst { it.id == activeId }
+        if (index < 0) return
+
+        val existing = profiles[index]
+        profiles[index] = existing.copy(
+            name = existing.name.trim().ifBlank { settings.host.trim().ifBlank { "Server" } },
+            host = settings.host.trim(),
+            port = settings.port.coerceIn(1, 65535),
+            useHttps = settings.useHttps,
+            username = settings.username.trim().ifBlank { "admin" },
+            refreshSeconds = settings.refreshSeconds.coerceIn(10, 120),
+        )
+        pref[Keys.ServerProfilesJson] = encodeServerProfiles(profiles)
+        secureCredentials.savePasswordForProfile(activeId, settings.password)
+    }
+
+    private fun decodeServerProfiles(rawJson: String): List<ServerProfile> {
+        if (rawJson.isBlank()) return emptyList()
+
+        val parsed: List<ServerProfile> = runCatching {
+            gson.fromJson<List<ServerProfile>>(rawJson, serverProfilesType).orEmpty()
+        }.getOrDefault(emptyList())
+
+        return parsed.map { profile ->
+            profile.copy(
+                id = profile.id.trim(),
+                name = profile.name.trim(),
+                host = profile.host.trim(),
+                port = profile.port.coerceIn(1, 65535),
+                username = profile.username.trim().ifBlank { "admin" },
+                refreshSeconds = profile.refreshSeconds.coerceIn(10, 120),
+            )
+        }.filter { it.id.isNotBlank() && it.host.isNotBlank() }
+    }
+
+    private fun encodeServerProfiles(profiles: List<ServerProfile>): String {
+        return gson.toJson(profiles.distinctBy { it.id })
     }
 }

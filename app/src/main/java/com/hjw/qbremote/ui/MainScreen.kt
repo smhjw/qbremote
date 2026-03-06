@@ -229,6 +229,12 @@ fun MainScreen(viewModel: MainViewModel) {
                 matchesTorrentSearch(torrent = torrent, query = query)
             }
         }
+        sortTorrents(
+            torrents = filtered,
+            crossSeedCounts = crossSeedCounts,
+            field = torrentSortField,
+            ascending = torrentSortAscending,
+        )
     }
     val visibleTorrents = remember(
         filteredTorrents,
@@ -454,6 +460,21 @@ fun MainScreen(viewModel: MainViewModel) {
                                 onDoubleTap = {
                                     scrollToTopOfCurrentPage(animated = true)
                                 },
+                            ) {
+                                Text(
+                                    text = if (currentPage == AppPage.DASHBOARD) "≡" else "←",
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                )
+                            }
+                        },
+                        title = {
+                            Text(
+                                text = stringResource(R.string.top_title),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.6.sp,
                             )
                         },
                         actions = {
@@ -918,6 +939,7 @@ private fun AddTorrentSheet(
             }
         }
     }
+}
 
     Column(
         modifier = Modifier
@@ -2057,8 +2079,8 @@ private fun ServerOverviewCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -3309,6 +3331,155 @@ private fun DashboardStatusPill(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+private fun trackerStatusLabel(status: Int): String {
+    return when (status) {
+        0 -> "禁用"
+        1 -> "未联系"
+        2 -> "工作中"
+        3 -> "更新中"
+        4 -> "不可用"
+        else -> "未知"
+    }
+}
+
+private fun trackerStatusColor(status: Int): Color {
+    return when (status) {
+        0 -> Color(0xFF9E9E9E)
+        1 -> Color(0xFF90A4AE)
+        2 -> Color(0xFF4CAF50)
+        3 -> Color(0xFFFFC107)
+        4 -> Color(0xFFE53935)
+        else -> Color(0xFF607D8B)
+    }
+}
+
+private fun parseTags(input: String): List<String> {
+    return input
+        .split(',', ';', '|')
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+}
+
+private fun toggleTag(current: String, option: String): String {
+    val tags = parseTags(current).toMutableList()
+    val idx = tags.indexOfFirst { it.equals(option, ignoreCase = false) }
+    if (idx >= 0) {
+        tags.removeAt(idx)
+    } else {
+        tags.add(option)
+    }
+    return tags.joinToString(",")
+}
+
+private data class TorrentStateStyle(
+    val borderColor: Color,
+    val progressColor: Color,
+    val tagContainer: Color,
+    val tagContent: Color,
+)
+
+@Composable
+private fun torrentStateStyle(state: String): TorrentStateStyle {
+    val normalized = normalizeTorrentState(state)
+    val base = when (normalized) {
+        "error", "missingfiles" -> Color(0xFFD32F2F)
+        "downloading", "stalleddl", "forceddl" -> Color(0xFF1E88E5)
+        "uploading", "stalledup", "forcedup" -> Color(0xFF2E7D32)
+        "pauseddl", "pausedup", "stoppeddl", "stoppedup" -> Color(0xFF6D6D6D)
+        "queueddl", "queuedup", "checkingdl", "checkingup", "checkingresumedata", "metadl", "forcedmetadl", "allocating", "moving" -> Color(0xFFF9A825)
+        else -> Color(0xFF607D8B)
+    }
+    return TorrentStateStyle(
+        borderColor = base,
+        progressColor = base,
+        tagContainer = base.copy(alpha = 0.20f),
+        tagContent = base,
+    )
+}
+
+@Composable
+private fun TorrentStateTag(
+    label: String,
+    style: TorrentStateStyle,
+) {
+    Box(
+        modifier = Modifier
+            .background(style.tagContainer, RoundedCornerShape(8.dp))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = label,
+            color = style.tagContent,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun TorrentMetaChip(
+    text: String,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: (() -> Unit)? = null,
+) {
+    Box(
+        modifier = Modifier
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
+            .background(containerColor, RoundedCornerShape(8.dp))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = text,
+            color = contentColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun TorrentInfoCell(
+    text: String,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+) {
+    Box(
+        modifier = modifier
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
+                shape = RoundedCornerShape(7.dp),
+            )
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
