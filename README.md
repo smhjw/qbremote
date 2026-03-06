@@ -1,5 +1,7 @@
 # qbremote
 
+English | [简体中文](README.zh-CN.md)
+
 `qbremote` is an Android app for remotely managing qBittorrent through the WebUI API.
 
 ## Project Snapshot
