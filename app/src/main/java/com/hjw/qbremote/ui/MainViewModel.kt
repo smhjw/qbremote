@@ -8,6 +8,7 @@ import com.hjw.qbremote.data.AppTheme
 import com.hjw.qbremote.data.ChartSortMode
 import com.hjw.qbremote.data.ConnectionSettings
 import com.hjw.qbremote.data.ConnectionStore
+import com.hjw.qbremote.data.DailyUploadTrackingSnapshot
 import com.hjw.qbremote.data.QbRepository
 import com.hjw.qbremote.data.ServerProfile
 import com.hjw.qbremote.data.model.AddTorrentFile
@@ -26,7 +27,9 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.UUID
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZonedDateTime
 
 enum class RefreshScene {
     DASHBOARD,
@@ -34,12 +37,19 @@ enum class RefreshScene {
     SETTINGS,
 }
 
+data class DailyTagUploadStat(
+    val tag: String,
+    val uploadedBytes: Long,
+    val torrentCount: Int,
+    val isNoTag: Boolean = false,
+)
+
 data class MainUiState(
     val settings: ConnectionSettings = ConnectionSettings(),
     val serverProfiles: List<ServerProfile> = emptyList(),
     val activeServerProfileId: String? = null,
     val isConnecting: Boolean = false,
-    val isRefreshing: Boolean = false,
+    val isManualRefreshing: Boolean = false,
     val connected: Boolean = false,
     val serverVersion: String = "-",
     val transferInfo: TransferInfo = TransferInfo(),
@@ -51,6 +61,8 @@ data class MainUiState(
     val detailTrackers: List<TorrentTracker> = emptyList(),
     val categoryOptions: List<String> = emptyList(),
     val tagOptions: List<String> = emptyList(),
+    val dailyTagUploadDate: String = "",
+    val dailyTagUploadStats: List<DailyTagUploadStat> = emptyList(),
     val refreshScene: RefreshScene = RefreshScene.DASHBOARD,
     val pendingHashes: Set<String> = emptySet(),
     val errorMessage: String? = null,
@@ -64,7 +76,13 @@ class MainViewModel(
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private var autoRefreshJob: Job? = null
+    private var hourlyBoundaryRefreshJob: Job? = null
     private var autoConnectAttempted = false
+    private var isRefreshInProgress = false
+    private var dailyUploadTrackingScopeKey: String? = null
+    private var dailyUploadBaselineDate: LocalDate? = null
+    private val dailyUploadBaselineByTorrent = mutableMapOf<String, Long>()
+    private val dailyUploadLastSeenByTorrent = mutableMapOf<String, Long>()
 
     init {
         viewModelScope.launch {
@@ -88,13 +106,20 @@ class MainViewModel(
         }
     }
 
-    fun updateHost(value: String) = updateSettings { it.copy(host = value) }
+    fun updateHost(value: String) = updateSettings { current ->
+        val parsed = parseHostInputHints(value)
+        current.copy(
+            host = value,
+            port = parsed?.port ?: current.port,
+            useHttps = parsed?.useHttps ?: current.useHttps,
+        )
+    }
     fun updatePort(value: String) = updateSettings { it.copy(port = value.toIntOrNull() ?: 0) }
     fun updateUseHttps(value: Boolean) = updateSettings { it.copy(useHttps = value) }
     fun updateUsername(value: String) = updateSettings { it.copy(username = value) }
     fun updatePassword(value: String) = updateSettings { it.copy(password = value) }
     fun updateRefreshSeconds(value: String) {
-        val sec = value.toIntOrNull()?.coerceIn(10, 120) ?: 10
+        val sec = value.toIntOrNull()?.coerceIn(5, 120) ?: 5
         updateSettings { it.copy(refreshSeconds = sec) }
     }
 
@@ -156,13 +181,17 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching {
                 val current = _uiState.value.settings
+                val normalizedHost = host.trim()
+                val parsed = parseHostInputHints(normalizedHost)
+                val resolvedPort = parsed?.port ?: (port.toIntOrNull() ?: 8080)
+                val resolvedUseHttps = parsed?.useHttps ?: useHttps
                 val nextSettings = current.copy(
-                    host = host.trim(),
-                    port = (port.toIntOrNull() ?: 8080).coerceIn(1, 65535),
-                    useHttps = useHttps,
+                    host = normalizedHost,
+                    port = resolvedPort.coerceIn(1, 65535),
+                    useHttps = resolvedUseHttps,
                     username = username.trim(),
                     password = password,
-                    refreshSeconds = (refreshSeconds.toIntOrNull() ?: 10).coerceIn(10, 120),
+                    refreshSeconds = (refreshSeconds.toIntOrNull() ?: 5).coerceIn(5, 120),
                 )
                 require(nextSettings.host.isNotBlank()) { "主机不能为空" }
                 require(nextSettings.username.isNotBlank()) { "用户名不能为空" }
@@ -176,9 +205,12 @@ class MainViewModel(
                         serverVersion = "-",
                         transferInfo = TransferInfo(),
                         torrents = emptyList(),
+                        dailyTagUploadDate = "",
+                        dailyTagUploadStats = emptyList(),
                     )
                 }
             }.onSuccess {
+                resetDailyUploadTrackingState()
                 connectInternal(persistSettings = false, showErrorOnFailure = true)
             }.onFailure { error ->
                 _uiState.update {
@@ -200,6 +232,8 @@ class MainViewModel(
                         serverVersion = "-",
                         transferInfo = TransferInfo(),
                         torrents = emptyList(),
+                        dailyTagUploadDate = "",
+                        dailyTagUploadStats = emptyList(),
                         detailHash = "",
                         detailProperties = null,
                         detailFiles = emptyList(),
@@ -207,6 +241,7 @@ class MainViewModel(
                     )
                 }
             }.onSuccess {
+                resetDailyUploadTrackingState()
                 connectInternal(persistSettings = false, showErrorOnFailure = true)
             }.onFailure { error ->
                 _uiState.update {
@@ -229,6 +264,7 @@ class MainViewModel(
     ) {
         if (_uiState.value.isConnecting) return
         viewModelScope.launch {
+            resetDailyUploadTrackingState()
             _uiState.update { it.copy(isConnecting = true, errorMessage = null) }
             val settings = _uiState.value.settings
             if (persistSettings) {
@@ -242,6 +278,7 @@ class MainViewModel(
                     refresh()
                     loadGlobalSelectionOptions()
                     startAutoRefresh()
+                    startHourlyBoundaryRefresh()
                 }
                 .onFailure { error ->
                     _uiState.update {
@@ -256,38 +293,69 @@ class MainViewModel(
                         )
                     }
                     autoRefreshJob?.cancel()
+                    hourlyBoundaryRefreshJob?.cancel()
                 }
         }
     }
 
-    fun refresh() {
-        if (_uiState.value.isRefreshing) return
+    fun refresh(manual: Boolean = false) {
+        if (isRefreshInProgress) return
+        isRefreshInProgress = true
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, errorMessage = null) }
-            repository.fetchDashboard()
-                .onSuccess { data ->
+            val refreshScene = _uiState.value.refreshScene
+            val detailHash = _uiState.value.detailHash
+            val shouldRefreshDetail = refreshScene == RefreshScene.TORRENT_DETAIL && detailHash.isNotBlank()
+
+            try {
+                if (manual) {
                     _uiState.update {
                         it.copy(
-                            isRefreshing = false,
-                            transferInfo = data.transferInfo,
-                            torrents = data.torrents,
+                            isManualRefreshing = true,
+                            errorMessage = null,
                         )
                     }
-                    refreshServerVersion()
                 }
-                .onFailure { error ->
+
+                val dashboardResult = repository.fetchDashboard()
+                val dashboardData = dashboardResult.getOrNull()
+                if (dashboardData != null) {
+                    val (date, dailyStats) = buildDailyTagUploadStats(dashboardData.torrents)
                     _uiState.update {
-                        val message = error.message
+                        it.copy(
+                            transferInfo = dashboardData.transferInfo,
+                            torrents = dashboardData.torrents,
+                            dailyTagUploadDate = date,
+                            dailyTagUploadStats = dailyStats,
+                        )
+                    }
+                    if (shouldRefreshDetail) {
+                        refreshDetailSnapshot(detailHash)
+                    }
+                } else {
+                    val error = dashboardResult.exceptionOrNull()
+                    _uiState.update {
+                        val message = error?.message
                         if (shouldSuppressRefreshError(message)) {
-                            it.copy(isRefreshing = false)
+                            it
                         } else {
                             it.copy(
-                                isRefreshing = false,
                                 errorMessage = message ?: "Refresh failed."
                             )
                         }
                     }
                 }
+            } finally {
+                isRefreshInProgress = false
+                if (manual) {
+                    _uiState.update {
+                        if (it.isManualRefreshing) {
+                            it.copy(isManualRefreshing = false)
+                        } else {
+                            it
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -468,6 +536,23 @@ class MainViewModel(
             }
         }
     }
+
+    private suspend fun refreshDetailSnapshot(hash: String) {
+        val detail = repository.fetchTorrentDetail(hash).getOrNull() ?: return
+        val trackers = repository.fetchTorrentTrackers(hash).getOrElse { emptyList() }
+        _uiState.update {
+            if (it.detailHash != hash) {
+                it
+            } else {
+                it.copy(
+                    detailProperties = detail.properties,
+                    detailFiles = detail.files,
+                    detailTrackers = trackers,
+                )
+            }
+        }
+    }
+
     private fun refreshServerVersion() {
         viewModelScope.launch {
             repository.fetchServerVersion()
@@ -493,13 +578,31 @@ class MainViewModel(
     }
 
     private fun updateSettings(update: (ConnectionSettings) -> ConnectionSettings) {
-        _uiState.update { current -> current.copy(settings = update(current.settings)) }
+        _uiState.update { current ->
+            val nextSettings = update(current.settings)
+            if (nextSettings == current.settings) {
+                current
+            } else {
+                current.copy(settings = nextSettings)
+            }
+        }
     }
 
     private fun updateAndPersistSettings(update: (ConnectionSettings) -> ConnectionSettings) {
-        updateSettings(update)
+        var changed = false
+        _uiState.update { current ->
+            val nextSettings = update(current.settings)
+            if (nextSettings == current.settings) {
+                current
+            } else {
+                changed = true
+                current.copy(settings = nextSettings)
+            }
+        }
+        if (!changed) return
+        val settingsToPersist = _uiState.value.settings
         viewModelScope.launch {
-            connectionStore.save(_uiState.value.settings)
+            connectionStore.save(settingsToPersist)
         }
     }
 
@@ -514,17 +617,194 @@ class MainViewModel(
         }
     }
 
+    private fun startHourlyBoundaryRefresh() {
+        hourlyBoundaryRefreshJob?.cancel()
+        hourlyBoundaryRefreshJob = viewModelScope.launch {
+            while (isActive) {
+                delay(millisUntilNextHourBoundary())
+                if (_uiState.value.connected) {
+                    refresh()
+                }
+            }
+        }
+    }
+
     private fun resolveAutoRefreshIntervalMs(state: MainUiState): Long {
-        val base = state.settings.refreshSeconds.coerceIn(10, 120)
+        val base = state.settings.refreshSeconds.coerceIn(5, 120)
         val adaptiveSeconds = when (state.refreshScene) {
-            RefreshScene.TORRENT_DETAIL -> (base - 2).coerceIn(8, 20)
-            RefreshScene.SETTINGS -> (base * 2).coerceIn(15, 120)
+            RefreshScene.TORRENT_DETAIL -> base
+            RefreshScene.SETTINGS -> (base * 2).coerceIn(10, 120)
             RefreshScene.DASHBOARD -> base
         }
         return adaptiveSeconds * 1000L
     }
 
+    private fun millisUntilNextHourBoundary(): Long {
+        val now = ZonedDateTime.now()
+        val nextHour = now.plusHours(1).withMinute(0).withSecond(0).withNano(0)
+        return Duration.between(now, nextHour)
+            .toMillis()
+            .coerceAtLeast(1_000L)
+    }
+
+    private fun resetDailyUploadTrackingState() {
+        dailyUploadTrackingScopeKey = null
+        dailyUploadBaselineDate = null
+        dailyUploadBaselineByTorrent.clear()
+        dailyUploadLastSeenByTorrent.clear()
+        _uiState.update {
+            it.copy(
+                dailyTagUploadDate = "",
+                dailyTagUploadStats = emptyList(),
+            )
+        }
+    }
+
+    private suspend fun buildDailyTagUploadStats(torrents: List<TorrentInfo>): Pair<String, List<DailyTagUploadStat>> {
+        val scopeKey = currentDailyUploadTrackingScopeKey()
+        ensureDailyUploadTrackingLoaded(scopeKey)
+        val today = LocalDate.now()
+        if (dailyUploadBaselineDate != today) {
+            val carryOver = dailyUploadLastSeenByTorrent.toMap()
+            dailyUploadBaselineDate = today
+            dailyUploadBaselineByTorrent.clear()
+            if (carryOver.isNotEmpty()) {
+                dailyUploadBaselineByTorrent.putAll(carryOver)
+            }
+        }
+
+        val activeKeys = torrents.map(::torrentTrackingKey).toSet()
+        dailyUploadBaselineByTorrent.keys.retainAll(activeKeys)
+        dailyUploadLastSeenByTorrent.keys.retainAll(activeKeys)
+
+        val uploadByTag = mutableMapOf<String, Long>()
+        val torrentCountByTag = mutableMapOf<String, Int>()
+
+        torrents.forEach { torrent ->
+            val trackingKey = torrentTrackingKey(torrent)
+            val currentUploaded = torrent.uploaded.coerceAtLeast(0L)
+            val baseline = dailyUploadBaselineByTorrent[trackingKey]
+                ?: dailyUploadLastSeenByTorrent[trackingKey]
+
+            if (baseline == null) {
+                dailyUploadBaselineByTorrent[trackingKey] = currentUploaded
+                dailyUploadLastSeenByTorrent[trackingKey] = currentUploaded
+                return@forEach
+            }
+            if (currentUploaded < baseline) {
+                dailyUploadBaselineByTorrent[trackingKey] = currentUploaded
+                dailyUploadLastSeenByTorrent[trackingKey] = currentUploaded
+                return@forEach
+            }
+
+            val delta = currentUploaded - baseline
+            dailyUploadLastSeenByTorrent[trackingKey] = currentUploaded
+            if (delta <= 0L) return@forEach
+
+            val tags = parseTorrentTags(torrent.tags).ifEmpty { listOf(NO_TAG_KEY) }
+            val baseShare = delta / tags.size
+            var remainder = delta % tags.size
+
+            for (tag in tags) {
+                val share = baseShare + if (remainder > 0L) {
+                    remainder -= 1L
+                    1L
+                } else {
+                    0L
+                }
+                if (share <= 0L) continue
+                uploadByTag[tag] = (uploadByTag[tag] ?: 0L) + share
+                torrentCountByTag[tag] = (torrentCountByTag[tag] ?: 0) + 1
+            }
+        }
+
+        val stats = uploadByTag.entries
+            .filter { it.value > 0L }
+            .sortedByDescending { it.value }
+            .map { (tag, uploaded) ->
+                DailyTagUploadStat(
+                    tag = tag,
+                    uploadedBytes = uploaded,
+                    torrentCount = torrentCountByTag[tag] ?: 0,
+                    isNoTag = tag == NO_TAG_KEY,
+                )
+            }
+
+        connectionStore.saveDailyUploadTrackingSnapshot(
+            scopeKey = scopeKey,
+            snapshot = DailyUploadTrackingSnapshot(
+                date = today.toString(),
+                baselineByTorrent = dailyUploadBaselineByTorrent.toMap(),
+                lastSeenByTorrent = dailyUploadLastSeenByTorrent.toMap(),
+            ),
+        )
+
+        return today.toString() to stats
+    }
+
+    private suspend fun ensureDailyUploadTrackingLoaded(scopeKey: String) {
+        if (dailyUploadTrackingScopeKey == scopeKey) return
+
+        dailyUploadTrackingScopeKey = scopeKey
+        dailyUploadBaselineDate = null
+        dailyUploadBaselineByTorrent.clear()
+        dailyUploadLastSeenByTorrent.clear()
+
+        val snapshot = connectionStore.loadDailyUploadTrackingSnapshot(scopeKey) ?: return
+        dailyUploadBaselineDate = runCatching {
+            snapshot.date
+                .takeIf { it.isNotBlank() }
+                ?.let(LocalDate::parse)
+        }.getOrNull()
+        dailyUploadBaselineByTorrent.putAll(snapshot.baselineByTorrent)
+        dailyUploadLastSeenByTorrent.putAll(snapshot.lastSeenByTorrent)
+    }
+
+    private fun currentDailyUploadTrackingScopeKey(): String {
+        val activeProfileId = _uiState.value.activeServerProfileId.orEmpty().trim()
+        if (activeProfileId.isNotBlank()) {
+            return "profile:$activeProfileId"
+        }
+
+        val settings = _uiState.value.settings
+        val host = settings.host.trim().lowercase()
+        return if (host.isNotBlank()) {
+            "server:${settings.useHttps}|$host|${settings.port}"
+        } else {
+            "default"
+        }
+    }
+
+    private fun parseTorrentTags(rawTags: String): List<String> {
+        val normalizedByKey = linkedMapOf<String, String>()
+        rawTags
+            .split(',', ';', '|')
+            .map { it.trim() }
+            .filter { it.isNotBlank() && it != "-" && !it.equals("null", ignoreCase = true) }
+            .forEach { tag ->
+                val key = tag.lowercase()
+                if (!normalizedByKey.containsKey(key)) {
+                    normalizedByKey[key] = tag
+                }
+            }
+        return normalizedByKey.values.toList()
+    }
+
+    private fun torrentTrackingKey(torrent: TorrentInfo): String {
+        return torrent.hash.ifBlank {
+            "${torrent.name}|${torrent.addedOn}|${torrent.savePath}|${torrent.size}"
+        }
+    }
+
+    override fun onCleared() {
+        autoRefreshJob?.cancel()
+        hourlyBoundaryRefreshJob?.cancel()
+        super.onCleared()
+    }
+
     companion object {
+        private const val NO_TAG_KEY = "__NO_TAG__"
+
         fun factory(
             connectionStore: ConnectionStore,
             repository: QbRepository,

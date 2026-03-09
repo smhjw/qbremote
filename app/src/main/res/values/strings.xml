@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">qbremote</string>
+    <string name="app_name">qbitremote</string>
 
     <string name="menu_settings">设置</string>
     <string name="menu_theme">主题</string>
@@ -37,14 +37,12 @@
     <string name="connect">连接</string>
     <string name="connecting">连接中…</string>
 
-    <string name="global_transfer_title">全局传输</string>
     <string name="refresh">刷新</string>
     <string name="refreshing">刷新中…</string>
     <string name="global_down_fmt">下载速度：%1$s</string>
     <string name="global_up_fmt">上传速度：%1$s</string>
     <string name="global_total_down_fmt">总下载量：%1$s</string>
     <string name="global_total_up_fmt">总上传量：%1$s</string>
-    <string name="global_dht_torrents_fmt">DHT 节点：%1$d ｜ 种子数：%2$d</string>
     <string name="server_version_fmt">版本 %1$s</string>
 
     <string name="chart_panel_title_fmt">图表面板（%1$s）</string>
@@ -57,6 +55,12 @@
     <string name="chart_metric_down_fmt">下载：%1$s</string>
     <string name="chart_metric_up_fmt">上传：%1$s</string>
     <string name="chart_metric_torrents_fmt">种子数：%1$d</string>
+    <string name="chart_other_label">其他</string>
+    <string name="chart_category_count_fmt">%1$d 个种子</string>
+    <string name="dashboard_category_share_title">分类占比</string>
+    <string name="dashboard_daily_tag_upload_title">今日上传量</string>
+    <string name="dashboard_daily_tag_upload_title_with_date">当日标签上传占比（%1$s）</string>
+    <string name="dashboard_daily_tag_upload_empty">当前自然日暂无上传数据。</string>
 
     <string name="status_uploading">上传中</string>
     <string name="status_downloading">下载中</string>
@@ -81,7 +85,6 @@
     <string name="no_tags">无标签</string>
     <string name="no_category">未分类</string>
     <string name="no_torrent_data">暂无种子数据</string>
-    <string name="site_group_header">%1$s（%2$d）</string>
     <string name="site_unknown">未知</string>
 
     <string name="pause">暂停</string>

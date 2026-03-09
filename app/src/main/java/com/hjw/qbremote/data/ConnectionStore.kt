@@ -2,7 +2,6 @@ package com.hjw.qbremote.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -24,7 +23,7 @@ data class ConnectionSettings(
     val useHttps: Boolean = false,
     val username: String = "admin",
     val password: String = "",
-    val refreshSeconds: Int = 10,
+    val refreshSeconds: Int = 5,
     val appLanguage: AppLanguage = AppLanguage.SYSTEM,
     val appTheme: AppTheme = AppTheme.DARK,
     val showSpeedTotals: Boolean = true,
@@ -121,6 +120,12 @@ data class ServerProfilesState(
     val activeProfileId: String? = null,
 )
 
+data class DailyUploadTrackingSnapshot(
+    val date: String = "",
+    val baselineByTorrent: Map<String, Long> = emptyMap(),
+    val lastSeenByTorrent: Map<String, Long> = emptyMap(),
+)
+
 enum class ChartSortMode {
     TOTAL_SPEED,
     DOWNLOAD_SPEED,
@@ -143,6 +148,8 @@ class ConnectionStore(private val context: Context) {
     private val secureCredentials = SecureCredentialStore(context)
     private val gson = Gson()
     private val serverProfileListType = object : TypeToken<List<ServerProfile>>() {}.type
+    private val dailyUploadTrackingMapType =
+        object : TypeToken<Map<String, DailyUploadTrackingSnapshot>>() {}.type
 
     private object Keys {
         val Host = stringPreferencesKey("host")
@@ -162,6 +169,7 @@ class ConnectionStore(private val context: Context) {
         val DeleteFilesWhenNoSeeders = booleanPreferencesKey("delete_files_when_no_seeders")
         val ServerProfilesJson = stringPreferencesKey("server_profiles_json")
         val ActiveServerProfileId = stringPreferencesKey("active_server_profile_id")
+        val DailyUploadTrackingJson = stringPreferencesKey("daily_upload_tracking_json")
     }
 
     val settingsFlow: Flow<ConnectionSettings> = context.dataStore.data.map { pref ->
@@ -313,6 +321,25 @@ class ConnectionStore(private val context: Context) {
         return switched
     }
 
+    suspend fun loadDailyUploadTrackingSnapshot(scopeKey: String): DailyUploadTrackingSnapshot? {
+        if (scopeKey.isBlank()) return null
+        val pref = context.dataStore.data.first()
+        val snapshots = parseDailyUploadTrackingSnapshots(pref[Keys.DailyUploadTrackingJson])
+        return snapshots[scopeKey]
+    }
+
+    suspend fun saveDailyUploadTrackingSnapshot(
+        scopeKey: String,
+        snapshot: DailyUploadTrackingSnapshot,
+    ) {
+        if (scopeKey.isBlank()) return
+        context.dataStore.edit { target ->
+            val snapshots = parseDailyUploadTrackingSnapshots(target[Keys.DailyUploadTrackingJson]).toMutableMap()
+            snapshots[scopeKey] = snapshot.normalized()
+            target[Keys.DailyUploadTrackingJson] = gson.toJson(snapshots)
+        }
+    }
+
     suspend fun migrateLegacyPasswordIfNeeded() {
         val prefBefore = context.dataStore.data.first()
         val legacy = prefBefore[Keys.PasswordLegacy].orEmpty()
@@ -343,7 +370,7 @@ class ConnectionStore(private val context: Context) {
             port = (pref[Keys.Port] ?: 8080).coerceIn(1, 65535),
             useHttps = pref[Keys.UseHttps] ?: false,
             username = pref[Keys.Username] ?: "admin",
-            refreshSeconds = (pref[Keys.RefreshSeconds] ?: 10).coerceIn(10, 120),
+            refreshSeconds = (pref[Keys.RefreshSeconds] ?: 5).coerceIn(5, 120),
         )
         profiles += profile
 
@@ -377,12 +404,24 @@ class ConnectionStore(private val context: Context) {
                             host = host,
                             port = profile.port.coerceIn(1, 65535),
                             username = profile.username.ifBlank { "admin" },
-                            refreshSeconds = profile.refreshSeconds.coerceIn(10, 120),
+                            refreshSeconds = profile.refreshSeconds.coerceIn(5, 120),
                         )
                     }
                 }
                 .distinctBy { it.id }
         }.getOrDefault(emptyList())
+    }
+
+    private fun parseDailyUploadTrackingSnapshots(raw: String?): Map<String, DailyUploadTrackingSnapshot> {
+        val text = raw.orEmpty().trim()
+        if (text.isBlank()) return emptyMap()
+        return runCatching {
+            gson.fromJson<Map<String, DailyUploadTrackingSnapshot>>(text, dailyUploadTrackingMapType)
+                .orEmpty()
+                .mapKeys { it.key.trim() }
+                .filterKeys { it.isNotBlank() }
+                .mapValues { (_, snapshot) -> snapshot.normalized() }
+        }.getOrDefault(emptyMap())
     }
 
     private fun resolvePassword(profileId: String): String {
@@ -408,6 +447,18 @@ class ConnectionStore(private val context: Context) {
 
     private fun generateProfileId(): String = UUID.randomUUID().toString()
 
+    private fun DailyUploadTrackingSnapshot.normalized(): DailyUploadTrackingSnapshot {
+        return copy(
+            date = date.trim(),
+            baselineByTorrent = baselineByTorrent
+                .filterKeys { it.isNotBlank() }
+                .mapValues { (_, value) -> value.coerceAtLeast(0L) },
+            lastSeenByTorrent = lastSeenByTorrent
+                .filterKeys { it.isNotBlank() }
+                .mapValues { (_, value) -> value.coerceAtLeast(0L) },
+        )
+    }
+
     private fun ConnectionSettings.toServerProfile(
         id: String,
         name: String,
@@ -419,7 +470,7 @@ class ConnectionStore(private val context: Context) {
             port = port.coerceIn(1, 65535),
             useHttps = useHttps,
             username = username.trim().ifBlank { "admin" },
-            refreshSeconds = refreshSeconds.coerceIn(10, 120),
+            refreshSeconds = refreshSeconds.coerceIn(5, 120),
         )
     }
 
@@ -430,7 +481,7 @@ class ConnectionStore(private val context: Context) {
             useHttps = this[Keys.UseHttps] ?: false,
             username = this[Keys.Username] ?: "admin",
             password = securePassword,
-            refreshSeconds = (this[Keys.RefreshSeconds] ?: 10).coerceIn(10, 120),
+            refreshSeconds = (this[Keys.RefreshSeconds] ?: 5).coerceIn(5, 120),
             appLanguage = runCatching {
                 enumValueOf<AppLanguage>(this[Keys.AppLanguage].orEmpty())
             }.getOrDefault(AppLanguage.SYSTEM),
@@ -447,52 +498,5 @@ class ConnectionStore(private val context: Context) {
             deleteFilesDefault = this[Keys.DeleteFilesDefault] ?: true,
             deleteFilesWhenNoSeeders = this[Keys.DeleteFilesWhenNoSeeders] ?: false,
         )
-    }
-
-    private fun syncActiveProfileFromSettings(
-        pref: MutablePreferences,
-        settings: ConnectionSettings,
-    ) {
-        val activeId = pref[Keys.ActiveServerProfileId].orEmpty()
-        if (activeId.isBlank()) return
-
-        val profiles = decodeServerProfiles(pref[Keys.ServerProfilesJson].orEmpty()).toMutableList()
-        val index = profiles.indexOfFirst { it.id == activeId }
-        if (index < 0) return
-
-        val existing = profiles[index]
-        profiles[index] = existing.copy(
-            name = existing.name.trim().ifBlank { settings.host.trim().ifBlank { "Server" } },
-            host = settings.host.trim(),
-            port = settings.port.coerceIn(1, 65535),
-            useHttps = settings.useHttps,
-            username = settings.username.trim().ifBlank { "admin" },
-            refreshSeconds = settings.refreshSeconds.coerceIn(10, 120),
-        )
-        pref[Keys.ServerProfilesJson] = encodeServerProfiles(profiles)
-        secureCredentials.savePasswordForProfile(activeId, settings.password)
-    }
-
-    private fun decodeServerProfiles(rawJson: String): List<ServerProfile> {
-        if (rawJson.isBlank()) return emptyList()
-
-        val parsed: List<ServerProfile> = runCatching {
-            gson.fromJson<List<ServerProfile>>(rawJson, serverProfilesType).orEmpty()
-        }.getOrDefault(emptyList())
-
-        return parsed.map { profile ->
-            profile.copy(
-                id = profile.id.trim(),
-                name = profile.name.trim(),
-                host = profile.host.trim(),
-                port = profile.port.coerceIn(1, 65535),
-                username = profile.username.trim().ifBlank { "admin" },
-                refreshSeconds = profile.refreshSeconds.coerceIn(10, 120),
-            )
-        }.filter { it.id.isNotBlank() && it.host.isNotBlank() }
-    }
-
-    private fun encodeServerProfiles(profiles: List<ServerProfile>): String {
-        return gson.toJson(profiles.distinctBy { it.id })
     }
 }

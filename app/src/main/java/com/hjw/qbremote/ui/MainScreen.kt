@@ -9,10 +9,12 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -61,6 +63,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,6 +74,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -91,7 +96,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import com.hjw.qbremote.data.AppLanguage
@@ -134,6 +138,12 @@ private data class DashboardStatusPillItem(
     val accentColor: Color,
 )
 
+private data class PieLegendEntry(
+    val label: String,
+    val value: Long,
+    val valueText: String,
+)
+
 private enum class AppPage {
     DASHBOARD,
     TORRENT_LIST,
@@ -172,8 +182,18 @@ private val LightBackgroundGradient = Brush.verticalGradient(
         Color(0xFFF6FAFF),
     ),
 )
+private val DashboardPiePalette = listOf(
+    Color(0xFF4C8DFF),
+    Color(0xFF33BC84),
+    Color(0xFFF3A53C),
+    Color(0xFFA77AF2),
+    Color(0xFFEF6D5E),
+    Color(0xFF19B1C3),
+    Color(0xFF8F9FB7),
+    Color(0xFFFFCF5C),
+)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -196,6 +216,7 @@ fun MainScreen(viewModel: MainViewModel) {
     var torrentListSortDescending by rememberSaveable { mutableStateOf(true) }
     var sortScrollRequestId by remember { mutableIntStateOf(0) }
     var startMotion by remember { mutableStateOf(false) }
+    val addTorrentSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val openDrawerDescription = stringResource(R.string.menu_open_drawer)
     val backDescription = stringResource(R.string.back)
     val manageServersDescription = stringResource(R.string.menu_manage_servers)
@@ -229,12 +250,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 matchesTorrentSearch(torrent = torrent, query = query)
             }
         }
-        sortTorrents(
-            torrents = filtered,
-            crossSeedCounts = crossSeedCounts,
-            field = torrentSortField,
-            ascending = torrentSortAscending,
-        )
     }
     val visibleTorrents = remember(
         filteredTorrents,
@@ -456,26 +471,19 @@ fun MainScreen(viewModel: MainViewModel) {
                             }
                         },
                         title = {
-                            TopBrandTitle(
-                                onDoubleTap = {
-                                    scrollToTopOfCurrentPage(animated = true)
-                                },
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .pointerInput(currentPage) {
+                                        detectTapGestures(
+                                            onDoubleTap = {
+                                                scrollToTopOfCurrentPage(animated = true)
+                                            },
+                                        )
+                                    },
                             ) {
-                                Text(
-                                    text = if (currentPage == AppPage.DASHBOARD) "≡" else "←",
-                                    fontSize = 20.sp,
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                )
+                                TopBrandTitle()
                             }
-                        },
-                        title = {
-                            Text(
-                                text = stringResource(R.string.top_title),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontFamily = FontFamily.Serif,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.6.sp,
-                            )
                         },
                         actions = {
                             when (currentPage) {
@@ -501,12 +509,12 @@ fun MainScreen(viewModel: MainViewModel) {
                                 AppPage.SETTINGS -> {
                                     TextButton(
                                         onClick = {
-                                            if (state.connected) viewModel.refresh() else viewModel.connect()
+                                            if (state.connected) viewModel.refresh(manual = true) else viewModel.connect()
                                         },
                                     ) {
                                         Text(
                                             text = if (state.connected) {
-                                                if (state.isRefreshing) {
+                                                if (state.isManualRefreshing) {
                                                     stringResource(R.string.refreshing)
                                                 } else {
                                                     stringResource(R.string.refresh)
@@ -615,12 +623,12 @@ fun MainScreen(viewModel: MainViewModel) {
                                 else -> {
                                     TextButton(
                                         onClick = {
-                                            if (state.connected) viewModel.refresh() else viewModel.connect()
+                                            if (state.connected) viewModel.refresh(manual = true) else viewModel.connect()
                                         },
                                     ) {
                                         Text(
                                             text = if (state.connected) {
-                                                if (state.isRefreshing) {
+                                                if (state.isManualRefreshing) {
                                                     stringResource(R.string.refreshing)
                                                 } else {
                                                     stringResource(R.string.refresh)
@@ -660,10 +668,22 @@ fun MainScreen(viewModel: MainViewModel) {
                                         torrents = state.torrents,
                                         torrentCount = state.torrents.size,
                                         showTotals = state.settings.showSpeedTotals,
-                                        isRefreshing = state.isRefreshing,
-                                        onRefresh = viewModel::refresh,
+                                        isRefreshing = state.isManualRefreshing,
+                                        onRefresh = { viewModel.refresh(manual = true) },
                                         onOpenTorrentList = ::openTorrentList,
                                     )
+                                }
+                                if (state.settings.showChartPanel) {
+                                    item {
+                                        CategorySharePieCard(
+                                            torrents = state.torrents,
+                                        )
+                                    }
+                                    item {
+                                        DailyTagUploadPieCard(
+                                            stats = state.dailyTagUploadStats,
+                                        )
+                                    }
                                 }
                             } else {
                                 item {
@@ -677,11 +697,14 @@ fun MainScreen(viewModel: MainViewModel) {
                         AppPage.TORRENT_LIST -> {
                             if (state.connected) {
                                 if (showTorrentSearchBar) {
-                                    item {
+                                    stickyHeader(key = "torrent_search_bar") {
                                         OutlinedTextField(
                                             value = torrentSearchQuery,
                                             onValueChange = { torrentSearchQuery = it },
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f))
+                                                .padding(bottom = 8.dp),
                                             label = { Text(stringResource(R.string.search_torrent_label)) },
                                             placeholder = { Text(stringResource(R.string.search_torrent_placeholder)) },
                                             singleLine = true,
@@ -794,22 +817,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 72.dp)
-                    .height(56.dp)
-                    .zIndex(2f)
-                    .pointerInput(contentListState) {
-                        detectTapGestures(
-                            onDoubleTap = {
-                                scrollToTopOfCurrentPage(animated = true)
-                            },
-                        )
-                    },
-            )
-
             if (showServerProfileSheet) {
                 ModalBottomSheet(
                     onDismissRequest = { showServerProfileSheet = false },
@@ -846,6 +853,7 @@ fun MainScreen(viewModel: MainViewModel) {
             if (showAddTorrentSheet) {
                 ModalBottomSheet(
                     onDismissRequest = { showAddTorrentSheet = false },
+                    sheetState = addTorrentSheetState,
                     containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     shape = PanelShape,
                 ) {
@@ -910,7 +918,7 @@ private fun AddTorrentSheet(
     var savePath by remember { mutableStateOf("") }
     var paused by remember { mutableStateOf(false) }
     var skipChecking by remember { mutableStateOf(false) }
-    var sequentialDownload by remember { mutableStateOf(true) }
+    var sequentialDownload by remember { mutableStateOf(false) }
     var firstLastPiecePrio by remember { mutableStateOf(false) }
     var uploadLimitKb by remember { mutableStateOf("") }
     var downloadLimitKb by remember { mutableStateOf("") }
@@ -939,7 +947,6 @@ private fun AddTorrentSheet(
             }
         }
     }
-}
 
     Column(
         modifier = Modifier
@@ -1016,7 +1023,11 @@ private fun AddTorrentSheet(
                     TextButton(
                         onClick = { pickTorrentLauncher.launch(arrayOf("*/*")) },
                     ) {
-                        Text("+")
+                        Text(
+                            text = "+",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
                 if (selectedFiles.isEmpty()) {
@@ -1350,7 +1361,16 @@ private fun ServerProfileSheet(
         )
         OutlinedTextField(
             value = host,
-            onValueChange = { host = it },
+            onValueChange = {
+                host = it
+                val parsed = parseHostInputHints(it)
+                parsed?.port?.let { detectedPort ->
+                    port = detectedPort.toString()
+                }
+                parsed?.useHttps?.let { detectedHttps ->
+                    useHttps = detectedHttps
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             label = { Text(stringResource(R.string.connection_host_label)) },
             singleLine = true,
@@ -1481,9 +1501,7 @@ private fun DrawerThemeItem(
 }
 
 @Composable
-private fun TopBrandTitle(
-    onDoubleTap: () -> Unit = {},
-) {
+private fun TopBrandTitle() {
     Text(
         text = buildAnnotatedString {
             pushStyle(
@@ -1492,7 +1510,7 @@ private fun TopBrandTitle(
                     fontWeight = FontWeight.Bold,
                 ),
             )
-            append("qb")
+            append("qbit")
             pop()
             pushStyle(
                 SpanStyle(
@@ -1506,13 +1524,6 @@ private fun TopBrandTitle(
         style = MaterialTheme.typography.titleMedium.copy(
             letterSpacing = 0.sp,
         ),
-        modifier = Modifier.pointerInput(Unit) {
-            detectTapGestures(
-                onDoubleTap = {
-                    onDoubleTap()
-                },
-            )
-        },
         maxLines = 1,
     )
 }
@@ -2079,8 +2090,8 @@ private fun ServerOverviewCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2206,6 +2217,256 @@ private fun TagChartPanelCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CategorySharePieCard(
+    torrents: List<TorrentInfo>,
+) {
+    val noCategoryLabel = stringResource(R.string.no_category)
+    val otherLabel = stringResource(R.string.chart_other_label)
+    val entries = remember(torrents, noCategoryLabel, otherLabel) {
+        collapsePieEntries(
+            entries = buildCategoryShareEntries(
+                torrents = torrents,
+                noCategoryLabel = noCategoryLabel,
+            ),
+            maxEntries = 7,
+            otherLabel = otherLabel,
+        )
+    }.map { (label, count) ->
+        PieLegendEntry(
+            label = label,
+            value = count,
+            valueText = stringResource(R.string.chart_category_count_fmt, count),
+        )
+    }
+
+    PieLegendCard(
+        title = null,
+        entries = entries,
+        emptyText = stringResource(R.string.chart_no_data),
+    )
+}
+
+@Composable
+private fun DailyTagUploadPieCard(
+    stats: List<DailyTagUploadStat>,
+) {
+    val noTagLabel = stringResource(R.string.no_tags)
+    val otherLabel = stringResource(R.string.chart_other_label)
+    val rawEntries = remember(stats, noTagLabel) {
+        stats
+            .filter { it.uploadedBytes > 0L }
+            .map { stat ->
+                val tagLabel = if (stat.isNoTag) noTagLabel else stat.tag
+                tagLabel to stat.uploadedBytes
+            }
+    }
+    val collapsed = remember(rawEntries, otherLabel) {
+        collapsePieEntries(
+            entries = rawEntries,
+            maxEntries = 7,
+            otherLabel = otherLabel,
+        )
+    }
+    val entries = collapsed.map { (label, uploadedBytes) ->
+        PieLegendEntry(
+            label = label,
+            value = uploadedBytes,
+            valueText = formatBytes(uploadedBytes),
+        )
+    }
+
+    PieLegendCard(
+        title = stringResource(R.string.dashboard_daily_tag_upload_title),
+        entries = entries,
+        emptyText = stringResource(R.string.dashboard_daily_tag_upload_empty),
+    )
+}
+
+@Composable
+private fun PieLegendCard(
+    title: String?,
+    entries: List<PieLegendEntry>,
+    emptyText: String,
+) {
+    OutlinedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = PanelShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f),
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (!title.isNullOrBlank()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            if (entries.isEmpty()) {
+                Text(
+                    text = emptyText,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                return@Column
+            }
+
+            val total = entries.sumOf { it.value }.coerceAtLeast(1L)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DashboardPieChart(
+                    entries = entries,
+                    total = total,
+                    holeColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+                    modifier = Modifier.size(150.dp),
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    entries.forEachIndexed { index, entry ->
+                        val color = DashboardPiePalette[index % DashboardPiePalette.size]
+                        val share = (entry.value.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                        PieLegendRow(
+                            color = color,
+                            label = entry.label,
+                            shareText = formatPercent(share),
+                            valueText = entry.valueText,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardPieChart(
+    entries: List<PieLegendEntry>,
+    total: Long,
+    holeColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier = modifier) {
+        val diameter = size.minDimension
+        val topLeft = Offset(
+            x = (size.width - diameter) / 2f,
+            y = (size.height - diameter) / 2f,
+        )
+        val arcSize = Size(width = diameter, height = diameter)
+
+        var startAngle = -90f
+        entries.forEachIndexed { index, entry ->
+            val sweepAngle = (entry.value.toFloat() / total.toFloat()) * 360f
+            if (sweepAngle <= 0f) return@forEachIndexed
+            drawArc(
+                color = DashboardPiePalette[index % DashboardPiePalette.size],
+                startAngle = startAngle,
+                sweepAngle = sweepAngle,
+                useCenter = true,
+                topLeft = topLeft,
+                size = arcSize,
+            )
+            startAngle += sweepAngle
+        }
+
+        drawCircle(
+            color = holeColor,
+            radius = diameter * 0.30f,
+            center = Offset(size.width / 2f, size.height / 2f),
+        )
+    }
+}
+
+@Composable
+private fun PieLegendRow(
+    color: Color,
+    label: String,
+    shareText: String,
+    valueText: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(color = color, shape = RoundedCornerShape(50)),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = shareText,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+private fun buildCategoryShareEntries(
+    torrents: List<TorrentInfo>,
+    noCategoryLabel: String,
+): List<Pair<String, Long>> {
+    val grouped = mutableMapOf<String, Long>()
+    torrents.forEach { torrent ->
+        val label = normalizeCategoryLabel(
+            category = torrent.category,
+            noCategoryText = noCategoryLabel,
+        )
+        grouped[label] = (grouped[label] ?: 0L) + 1L
+    }
+    return grouped.entries
+        .sortedByDescending { it.value }
+        .map { it.key to it.value }
+}
+
+private fun collapsePieEntries(
+    entries: List<Pair<String, Long>>,
+    maxEntries: Int,
+    otherLabel: String,
+): List<Pair<String, Long>> {
+    if (entries.isEmpty()) return emptyList()
+    if (entries.size <= maxEntries) return entries
+
+    val safeMax = maxEntries.coerceAtLeast(2)
+    val head = entries.take(safeMax - 1)
+    val otherValue = entries.drop(safeMax - 1).sumOf { it.second }
+    return if (otherValue > 0L) {
+        head + listOf(otherLabel to otherValue)
+    } else {
+        head
     }
 }
 
@@ -2547,7 +2808,11 @@ private fun TorrentOperationDetailCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             OutlinedTextField(
                                 value = downloadLimitText,
                                 onValueChange = { downloadLimitText = it },
@@ -2566,12 +2831,14 @@ private fun TorrentOperationDetailCard(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 enabled = !isPending,
                             )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            TextButton(onClick = { onSetSpeedLimit(downloadLimitText, uploadLimitText) }, enabled = !isPending) {
+                            TextButton(
+                                onClick = { onSetSpeedLimit(downloadLimitText, uploadLimitText) },
+                                enabled = !isPending,
+                                modifier = Modifier.background(
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                    shape = RoundedCornerShape(8.dp),
+                                ),
+                            ) {
                                 Text(stringResource(R.string.detail_action_apply))
                             }
                         }
@@ -3334,155 +3601,6 @@ private fun DashboardStatusPill(
     }
 }
 
-private fun trackerStatusLabel(status: Int): String {
-    return when (status) {
-        0 -> "禁用"
-        1 -> "未联系"
-        2 -> "工作中"
-        3 -> "更新中"
-        4 -> "不可用"
-        else -> "未知"
-    }
-}
-
-private fun trackerStatusColor(status: Int): Color {
-    return when (status) {
-        0 -> Color(0xFF9E9E9E)
-        1 -> Color(0xFF90A4AE)
-        2 -> Color(0xFF4CAF50)
-        3 -> Color(0xFFFFC107)
-        4 -> Color(0xFFE53935)
-        else -> Color(0xFF607D8B)
-    }
-}
-
-private fun parseTags(input: String): List<String> {
-    return input
-        .split(',', ';', '|')
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
-        .distinct()
-}
-
-private fun toggleTag(current: String, option: String): String {
-    val tags = parseTags(current).toMutableList()
-    val idx = tags.indexOfFirst { it.equals(option, ignoreCase = false) }
-    if (idx >= 0) {
-        tags.removeAt(idx)
-    } else {
-        tags.add(option)
-    }
-    return tags.joinToString(",")
-}
-
-private data class TorrentStateStyle(
-    val borderColor: Color,
-    val progressColor: Color,
-    val tagContainer: Color,
-    val tagContent: Color,
-)
-
-@Composable
-private fun torrentStateStyle(state: String): TorrentStateStyle {
-    val normalized = normalizeTorrentState(state)
-    val base = when (normalized) {
-        "error", "missingfiles" -> Color(0xFFD32F2F)
-        "downloading", "stalleddl", "forceddl" -> Color(0xFF1E88E5)
-        "uploading", "stalledup", "forcedup" -> Color(0xFF2E7D32)
-        "pauseddl", "pausedup", "stoppeddl", "stoppedup" -> Color(0xFF6D6D6D)
-        "queueddl", "queuedup", "checkingdl", "checkingup", "checkingresumedata", "metadl", "forcedmetadl", "allocating", "moving" -> Color(0xFFF9A825)
-        else -> Color(0xFF607D8B)
-    }
-    return TorrentStateStyle(
-        borderColor = base,
-        progressColor = base,
-        tagContainer = base.copy(alpha = 0.20f),
-        tagContent = base,
-    )
-}
-
-@Composable
-private fun TorrentStateTag(
-    label: String,
-    style: TorrentStateStyle,
-) {
-    Box(
-        modifier = Modifier
-            .background(style.tagContainer, RoundedCornerShape(8.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp),
-    ) {
-        Text(
-            text = label,
-            color = style.tagContent,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun TorrentMetaChip(
-    text: String,
-    containerColor: Color,
-    contentColor: Color,
-    onClick: (() -> Unit)? = null,
-) {
-    Box(
-        modifier = Modifier
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier
-                }
-            )
-            .background(containerColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp),
-    ) {
-        Text(
-            text = text,
-            color = contentColor,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun TorrentInfoCell(
-    text: String,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    Box(
-        modifier = modifier
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier
-                }
-            )
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
-                shape = RoundedCornerShape(7.dp),
-            )
-            .padding(horizontal = 6.dp, vertical = 3.dp),
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
 @Composable
 private fun SettingsDialog(
     settings: ConnectionSettings,
@@ -3659,14 +3777,6 @@ private fun localizedTorrentStateLabel(state: String): String {
 
 private fun isPausedState(state: String): Boolean {
     return normalizeTorrentState(state) in setOf("pauseddl", "pausedup", "stoppeddl", "stoppedup")
-}
-
-private fun isActiveTransferState(state: String): Boolean {
-    return normalizeTorrentState(state) in setOf(
-        "downloading", "forceddl", "stalleddl", "metadl", "forcedmetadl",
-        "checkingdl", "queueddl", "allocating", "moving", "checkingresumedata",
-        "uploading", "forcedup", "stalledup", "checkingup", "queuedup"
-    )
 }
 
 private fun effectiveTorrentState(torrent: TorrentInfo): String {

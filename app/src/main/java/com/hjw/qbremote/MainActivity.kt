@@ -7,11 +7,9 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.os.LocaleListCompat
@@ -73,14 +71,9 @@ private fun ConfigureSystemBars(darkTheme: Boolean) {
     val view = LocalView.current
     if (view.isInEditMode) return
 
-    val statusBarColor = MaterialTheme.colorScheme.background.toArgb()
-    val navigationBarColor = MaterialTheme.colorScheme.surface.toArgb()
-
     SideEffect {
-        val activity = view.context.findActivity() ?: return@SideEffect
+        val activity = view.context.findActivity() as? AppCompatActivity ?: return@SideEffect
         val window = activity.window
-        window.statusBarColor = statusBarColor
-        window.navigationBarColor = navigationBarColor
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = !darkTheme
             isAppearanceLightNavigationBars = !darkTheme
