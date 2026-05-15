@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat)",
+      "Bash(cp /tmp/analysis.txt /d/fnos/qbitremote-main/.claude/PROJECT_ANALYSIS.txt)",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(export JAVA_HOME=\"D:/hjw/codex/tools/android-build/tools/jdk17\")",
+      "Bash(export GRADLE_USER_HOME=\"D:/hjw/codex/tools/android-build/tools/gradle-8.7\")",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(./gradlew clean *)",
+      "Bash(set \"JAVA_HOME=D:\\\\hjw\\\\codex\\\\tools\\\\android-build\\\\tools\\\\jdk17\")",
+      "Bash(set \"GRADLE_USER_HOME=D:\\\\hjw\\\\codex\\\\tools\\\\android-build\\\\tools\\\\gradle-8.7\")",
+      "Bash(set \"ANDROID_HOME=D:\\\\hjw\\\\codex\\\\tools\\\\android-build\\\\tools\\\\android-sdk\")",
+      "Bash(gradlew.bat clean *)",
+      "Bash(cmd.exe /c \"set JAVA_HOME=D:\\\\hjw\\\\codex\\\\tools\\\\android-build\\\\tools\\\\jdk17 && set GRADLE_USER_HOME=D:\\\\hjw\\\\codex\\\\tools\\\\android-build\\\\tools\\\\gradle-8.7 && set ANDROID_HOME=D:\\\\hjw\\\\codex\\\\tools\\\\android-build\\\\tools\\\\android-sdk && gradlew.bat clean assembleDebug 2>&1\")",
+      "Bash(cd /d D:\\\\fnos\\\\qbitremote-main)",
+      "Bash(call gradlew.bat clean assembleDebug)",
+      "Bash(set \"JAVA_HOME=C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\")",
+      "Bash(set \"GRADLE_USER_HOME=D:\\\\gradle_cache\")",
+      "Bash(set \"ANDROID_HOME=C:\\\\Users\\\\hjw66\\\\AppData\\\\Local\\\\Android\\\\Sdk\")",
+      "Bash(cmd /c \"set JAVA_HOME=C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr && set GRADLE_USER_HOME=D:\\\\gradle_cache && set ANDROID_HOME=C:\\\\Users\\\\hjw66\\\\AppData\\\\Local\\\\Android\\\\Sdk && gradlew.bat clean assembleDebug\")",
+      "Bash(cmd /c \"set \\\\\"JAVA_HOME=C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\\\\\" && set \\\\\"GRADLE_USER_HOME=D:\\\\gradle_cache\\\\\" && set \\\\\"ANDROID_HOME=C:\\\\Users\\\\hjw66\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\\" && gradlew.bat clean assembleDebug\")",
+      "Bash(cmd /c \"cd /d D:\\\\fnos\\\\qbitremote-main && set JAVA_HOME=C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr && set GRADLE_USER_HOME=D:\\\\gradle_cache && set ANDROID_HOME=C:\\\\Users\\\\hjw66\\\\AppData\\\\Local\\\\Android\\\\Sdk && gradlew.bat clean assembleDebug 2>&1\")",
+      "Bash(cmd /c \"cd /d D:\\\\fnos\\\\qbitremote-main & set \"JAVA_HOME=C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr\" & set \"GRADLE_USER_HOME=D:\\\\gradle_cache\" & set \"ANDROID_HOME=C:\\\\Users\\\\hjw66\\\\AppData\\\\Local\\\\Android\\\\Sdk\" & gradlew.bat clean assembleDebug\")",
+      "Bash(JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\" GRADLE_USER_HOME=\"D:/gradle_cache\" ANDROID_HOME=\"/c/Users/hjw66/AppData/Local/Android/Sdk\" D:/fnos/qbitremote-main/gradlew.bat clean assembleDebug)",
+      "Read(//c/Program Files/Android/Android Studio/**)",
+      "Bash(ANDROID_HOME=\"C:/Users/hjw66/AppData/Local/Android/Sdk\" GRADLE_USER_HOME=\"D:/gradle_cache\" D:/fnos/qbitremote-main/gradlew.bat clean assembleDebug)",
+      "Bash(ANDROID_HOME=\"C:/Users/hjw66/AppData/Local/Android/Sdk\" GRADLE_USER_HOME=\"D:/gradle_cache\" D:/fnos/qbitremote-main/gradlew.bat assembleDebug)",
+      "Bash(cp D:/hjw/codex/qb-remote-android/keystore/qbitremote-upload.jks D:/fnos/qbitremote-main/keystore/)",
+      "Bash(cp D:/hjw/codex/qb-remote-android/keystore.properties D:/fnos/qbitremote-main/)",
+      "Bash(ANDROID_HOME=\"C:/Users/hjw66/AppData/Local/Android/Sdk\" GRADLE_USER_HOME=\"D:/gradle_cache\" D:/fnos/qbitremote-main/gradlew.bat assembleRelease)",
+      "Bash(JAVA_HOME=\"D:/hjw/codex/tools/android-build/tools/jdk17\" GRADLE_USER_HOME=\"D:/hjw/codex/tools/android-build/tools/gradle-8.7\" ANDROID_HOME=\"D:/hjw/codex/tools/android-build/tools/android-sdk\" D:/fnos/qbitremote-main/gradlew.bat assembleRelease)",
+      "Bash(JAVA_HOME=\"D:/hjw/codex/tools/android-build/tools/jdk17\" GRADLE_USER_HOME=\"D:/hjw/codex/tools/android-build/tools/gradle-8.7\" ANDROID_HOME=\"D:/hjw/codex/tools/android-build/tools/android-sdk\" D:/fnos/qbitremote-main/gradlew.bat bundleRelease)",
+      "Bash(\"D:/hjw/codex/tools/android-build/tools/jdk17/bin/keytool\" -printcert -jarfile D:/fnos/qbitremote-main/app/build/outputs/apk/release/app-release.apk)",
+      "Bash(JAVA_HOME=\"D:/hjw/codex/tools/android-build/tools/jdk17\" GRADLE_USER_HOME=\"D:/hjw/codex/tools/android-build/tools/gradle-8.7\" ANDROID_HOME=\"D:/hjw/codex/tools/android-build/tools/android-sdk\" D:/fnos/qbitremote-main/gradlew.bat clean assembleRelease bundleRelease)"
+    ]
+  }
+}

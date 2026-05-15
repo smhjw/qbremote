@@ -1,0 +1,9 @@
+This app requires login to the user's OWN qBittorrent server, not a developer-provided service. Users enter their server's host, port, username, and password in the app's connection settings. The app sends credentials directly to the user's own qBittorrent WebUI via its Web API. No developer-owned server is involved; all data flows only between the user's device and their own server.
+
+Demo server for testing:
+Host: https://qb1.caifuziyou.top
+Port: 1667
+Username: admin
+Password: Hjwztt0627!
+
+This is a standard qBittorrent instance with sample torrents, provided solely for Google Play review and may be offline after review.

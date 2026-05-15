@@ -1,0 +1,69 @@
+App Access Declaration / App Access 声明
+=========================================
+
+English
+-------
+
+This app requires login to function. However, it does NOT use a developer-provided
+authentication service. Instead, users must log in to their OWN qBittorrent server's
+WebUI endpoint that they have set up and configured themselves.
+
+How the login works:
+- The user enters the host/IP, port, username, and password of their own qBittorrent
+  WebUI instance into the app's connection settings.
+- The app sends these credentials directly to the user's own server via the
+  qBittorrent Web API to authenticate and manage torrents.
+- No developer-owned server is involved. All data flows between the user's device
+  and their own qBittorrent server only.
+
+For reviewers who do not have their own qBittorrent server:
+1. Install qBittorrent on any computer (https://www.qbittorrent.org)
+2. Enable WebUI in qBittorrent settings (Tools → Options → Web UI → check "Enable WebUI")
+3. Set a username and password in the WebUI settings
+4. Note the listening port (default: 8080)
+5. Enter the server's IP address, port, username, and password into the app
+6. The app will connect and you can explore all functionality
+
+Alternatively, for testing purposes, a demo server is available:
+- Host: qb-demo.hjw66.com
+- Port: 8080
+- Username: reviewer
+- Password: Review@2026
+- HTTPS: disabled (for simplicity)
+
+This demo server is a standard qBittorrent instance with a few sample torrents.
+It is provided solely for Google Play review testing and may be offline after
+the review is completed.
+
+
+中文（简体）
+-----------
+
+本应用需要登录才能使用，但并不使用开发者提供的认证服务。用户需要登录的是
+自己搭建和配置的 qBittorrent 服务器的 WebUI。
+
+登录机制说明：
+- 用户在应用的连接设置中输入自己的 qBittorrent WebUI 地址（主机/IP、端口）
+  以及该服务器的用户名和密码
+- 应用通过 qBittorrent Web API 将凭据直接发送到用户自己的服务器进行认证
+  和种子管理
+- 不涉及任何开发者自有服务器，所有数据仅在用户设备与其自己的 qBittorrent
+  服务器之间传输
+
+若审核人员没有自己的 qBittorrent 服务器，可按以下步骤创建：
+1. 在任意电脑上安装 qBittorrent（https://www.qbittorrent.org）
+2. 在 qBittorrent 设置中启用 WebUI（工具 → 选项 → Web UI →勾选"启用 Web 用户界面"）
+3. 在 WebUI 设置中填写用户名和密码
+4. 记录监听端口（默认：8080）
+5. 在本应用中输入该服务器的 IP 地址、端口、用户名和密码
+6. 应用即可连接，可体验全部功能
+
+或者，为方便审核测试，提供一个演示服务器：
+- 主机：qb-demo.hjw66.com
+- 端口：8080
+- 用户名：reviewer
+- 密码：Review@2026
+- HTTPS：未启用（为简化测试）
+
+此演示服务器为标准 qBittorrent 实例，包含若干示例种子，
+仅用于 Google Play 审核测试，审核完成后可能下线。

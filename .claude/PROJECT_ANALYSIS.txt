@@ -1,0 +1,192 @@
+# QBREMOTE PROJECT STRUCTURE & SPEED LIMIT ANALYSIS
+
+## PROJECT OVERVIEW
+- App: TorrentRemote
+- Backends: qBittorrent, Transmission
+- UI: Jetpack Compose (Android)
+- Language: Kotlin
+- Architecture: Single Activity (MainActivity.kt)
+
+## 1. PROJECT DIRECTORY STRUCTURE
+
+app/src/main/java/com/hjw/qbremote/
+├── MainActivity.kt (Entry point, Compose root)
+├── TorrentWidgetProvider.kt
+├── data/
+│   ├── QbApi.kt (Retrofit API interface)
+│   ├── QbRepository.kt (qBittorrent backend)
+│   ├── TransmissionBackend.kt
+│   ├── TorrentRepository.kt (Repository pattern)
+│   ├── ConnectionStore.kt (DataStore persistence)
+│   ├── BackendModels.kt (Interfaces, capabilities)
+│   └── model/
+│       ├── QbModels.kt (TransferInfo, TorrentInfo, TorrentProperties)
+│       └── AddTorrentModels.kt
+└── ui/ (35+ Compose files)
+    ├── MainScreen.kt (Navigation root)
+    ├── MainViewModel.kt (UI state & actions)
+    ├── TorrentDetailPageContent.kt
+    ├── TorrentCards.kt (SPEED LIMIT UI HERE - lines 612-653)
+    ├── ServerDashboardPageContent.kt
+    ├── TorrentListPageContent.kt
+    ├── SettingsRootPageContent.kt
+    └── (30+ supporting UI files)
+
+## 2. EXISTING SPEED LIMIT FUNCTIONALITY
+
+### API Endpoints (QbApi.kt, lines 193-204)
+- POST api/v2/torrents/setDownloadLimit (limit in bytes)
+- POST api/v2/torrents/setUploadLimit (limit in bytes)
+
+### Data Models (QbModels.kt)
+TransferInfo:
+  - dl_rate_limit: Global DL limit (not exposed in UI)
+  - up_rate_limit: Global UL limit (not exposed in UI)
+
+TorrentProperties:
+  - downloadLimit: Per-torrent DL limit (bytes)
+  - uploadLimit: Per-torrent UL limit (bytes)
+
+### Repository (QbRepository.kt, lines 307-316)
+setTorrentSpeedLimit() calls both setDownloadLimit and setUploadLimit
+
+### ViewModel (MainViewModel.kt, lines 1590-1594)
+setTorrentSpeedLimit(hash, downloadLimitKb, uploadLimitKb)
+  - Converts KB/s strings to bytes via parseLimitKbToBytes()
+  - Calls repository.setTorrentSpeedLimit()
+
+### UI (TorrentCards.kt, lines 612-653)
+In TorrentDetailInfoTab composable:
+  - Two OutlinedTextField inputs (KB/s)
+  - Apply button
+  - Wrapped in: if (capabilities.supportsPerTorrentSpeedLimit)
+
+### Strings (3 locale files)
+  detail_section_speed_limit (CN: "种子限速", EN: "Per Torrent Speed Limit")
+  detail_download_kb_label (CN: "下载 KB/s", EN: "Download KB/s")
+  detail_upload_kb_label (CN: "上传 KB/s", EN: "Upload KB/s")
+  detail_action_apply (CN: "应用", EN: "Apply")
+
+### Auto-Population (TorrentCards.kt, lines 203-208)
+LaunchedEffect populates UI fields when detail properties load:
+  - Converts bytes to KB/s: dl / 1024
+
+### Capability Flag (BackendModels.kt)
+supportsPerTorrentSpeedLimit = true for both qBittorrent and Transmission
+
+## 3. MAIN ACTIVITY & SCREEN STRUCTURE
+
+MainActivity.kt - Single activity with Compose root
+
+Screen Hierarchy:
+  MainScreen
+  ├── ConnectionScreen
+  └── MainNavigationScreen
+      ├── ServerDashboardPageContent (charts/stats)
+      ├── TorrentListPageContent
+      │   └── TorrentOperationDetailCard
+      │       ├── TorrentDetailInfoTab (SPEED LIMITS)
+      │       ├── TorrentDetailTrackersTab
+      │       ├── TorrentDetailPeersTab
+      │       └── TorrentDetailFilesTab
+      └── SettingsRootPageContent
+
+## 4. API ENDPOINTS & ARCHITECTURE
+
+qBittorrent API v2 paths:
+  POST api/v2/auth/login
+  GET api/v2/transfer/info (global speeds, limits, disk)
+  GET api/v2/torrents/info (list with speeds)
+  GET api/v2/torrents/properties (dl_limit, up_limit)
+  POST api/v2/torrents/setDownloadLimit
+  POST api/v2/torrents/setUploadLimit
+
+Connection Settings:
+  Host, Port, Username, Password, HTTPS flag, RefreshInterval, BackendType
+
+Global Limits:
+  - Exist in TransferInfo (downloadRateLimit, uploadRateLimit)
+  - NOT exposed in app UI
+  - Only per-torrent limits are managed
+
+## 5. TORRENT DATA MODELS
+
+TransferInfo (Global):
+  downloadSpeed, uploadSpeed (current)
+  downloadedTotal, uploadedTotal (cumulative)
+  downloadRateLimit, uploadRateLimit (server limits - NOT in UI)
+  freeSpaceOnDisk, dhtNodes, totalTorrentCount
+
+TorrentInfo (Per-Torrent Current Stats):
+  hash, name, category, tags
+  downloadSpeed, uploadSpeed (current bytes/sec)
+  downloaded, uploaded (cumulative bytes)
+  ratio, state, progress (0.0-1.0)
+  seeders, leechers, numComplete, numIncomplete
+  addedOn, lastActivity, eta
+
+TorrentProperties (Per-Torrent Settings):
+  savePath, downloadLimit (bytes), uploadLimit (bytes)
+  shareRatio, timeElapsed, seedingTime
+  creationDate, pieceSize, comment, totalSize
+
+## 6. DATA FLOW FOR SPEED LIMIT
+
+UI Input (KB/s string)
+  ↓
+TorrentOperationDetailCard state (downloadLimitText, uploadLimitText)
+  ↓
+TorrentDetailPageContent callback (onSetTorrentSpeedLimit)
+  ↓
+MainViewModel.setTorrentSpeedLimit(hash, dlKb, upKb)
+  - parseLimitKbToBytes() converts to bytes
+  ↓
+TorrentRepository.setTorrentSpeedLimit(profileId, hash, dlBytes, upBytes)
+  ↓
+QbRepository.setTorrentSpeedLimit(hash, dlBytes, upBytes)
+  - executeWithRetry block
+  - api.setDownloadLimit() and api.setUploadLimit()
+  ↓
+QbApi (Retrofit HTTP POST)
+  ↓
+qBittorrent API
+
+## 7. KEY IMPLEMENTATION PATTERNS
+
+Repository Pattern: QbApi → QbRepository → TorrentRepository → MainViewModel → UI
+
+State Management:
+  - ConnectionStore (DataStore): Persists profiles, settings
+  - MainViewModel: Holds MainUiState
+  - Local Composable State: downloadLimitText, uploadLimitText
+  - RealtimeSpeedTracker: Speed history
+
+Byte Conversion:
+  Display: bytes / 1024 = KB/s
+  Send: KB/s * 1024 = bytes
+
+## 8. SUMMARY
+
+EXISTING:
+✓ Per-torrent speed limit UI (fully functional)
+✓ API endpoints for limits
+✓ Data models with limits
+✓ KB/s input & conversion
+✓ Capability checking
+✓ Multi-language (Chinese + English)
+✓ Auto-population from API
+
+MISSING:
+✗ Global speed limit UI
+✗ Scheduled/alternative speed limits
+✗ Speed presets
+✗ Speed visualization/charts
+
+EXTENSION POINTS:
+- QbApi.kt: Add new API endpoints
+- QbRepository.kt: Add new methods
+- MainViewModel.kt: Add action handlers
+- TorrentDetailInfoTab: Expand UI
+- strings.xml (3 files): Add labels
+- BackendModels.kt: Add capability flags
+
