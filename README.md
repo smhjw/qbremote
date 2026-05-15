@@ -25,60 +25,24 @@
 - 种子详情页支持信息、Tracker、用户、文件四个页签
 - Tracker 复制、编辑、删除，以及 passkey 隐藏/显示
 - 重新汇报、重新校验、分类/标签修改、限速、分享率等常用操作
-- 文件树浏览、文件夹优先展示与更稳定的前后台恢复体验
-- 从浏览器或其他 App 分享磁力链接直接添加到客户端
-- 种子下载完成通知栏提醒（含震动）
-- 桌面 Widget：实时显示全局上下行速度与种子总数
 - 中英文、本地主题、Google Play 资源与自适应图标
+- 多服务器同时在线时，打开"限速设置"弹窗顶部新增服务器下拉选择框，可自由切换目标服务器
 
-### 当前版本
 
-- App 名称：`TorrentRemote`
-- Application ID：`com.hjw.qbremote`
-- 版本：`0.1.15`
-- Version Code：`16`
-- Min SDK：`26`
-- Target / Compile SDK：`35`
 
 ### 支持的后端
 
 - qBittorrent WebUI API（4.x / 5.x）
 - Transmission RPC
 
-### 构建与发布
+### 应用截图
+<img width="1440" height="2954" alt="9e7edcde8823ab772e32722a665f51fc" src="https://github.com/user-attachments/assets/f34713cc-6aff-4f5b-8558-b88ee3846f5f" />
+<img width="1440" height="2954" alt="17883453a80b6f82b64301b65b591f44" src="https://github.com/user-attachments/assets/c96e7356-ebd3-4d79-abe2-85921a2bf6df" />
+<img width="1440" height="2954" alt="60f8c21eb4bd5b9d18058b53542b595d" src="https://github.com/user-attachments/assets/73fedb29-8718-4205-b535-84f1b8a02e1a" />
+<img width="1440" height="2954" alt="54a7437b29c8429ed50cc7d20f23fc4b" src="https://github.com/user-attachments/assets/475f3886-a69d-4249-ba14-69e0db7e605c" />
+<img width="1440" height="2954" alt="66db519789dd33d10fbd7907fedf5232" src="https://github.com/user-attachments/assets/2cf7ad26-b5af-46dc-82bd-324efa372c00" />
+<img width="1440" height="2954" alt="c2db987ef558bafdb4664a4ec3ae8250" src="https://github.com/user-attachments/assets/6ad4c09e-a6c0-487e-9def-b1efe9f078ea" />
 
-仓库内已经包含本地 Android 工具链，位于 `tools/android-build/`。
-
-Debug 构建：
-
-```powershell
-.\gradlew.bat assembleDebug
-```
-
-固定签名的 Google Play Release AAB：
-
-```powershell
-.\scripts\build-release-aab.ps1
-```
-
-固定签名的 Release APK：
-
-```powershell
-.\gradlew.bat assembleRelease
-```
-
-关键产物路径：
-
-- Debug APK：`app/build/outputs/apk/debug/app-debug.apk`
-- Release APK：`app/build/outputs/apk/release/app-release.apk`
-- Release AAB：`app/build/outputs/bundle/release/app-release.aab`
-- 分发目录：`release-artifacts/`
-
-### Google Play 资源
-
-- 512 图标：`play-assets/icon/qbitremote-play-icon-512.png`
-- 1024 源图：`play-assets/icon/qbitremote-play-icon-1024.png`
-- 发布清单文档：[Google Play Release Checklist (zh-CN)](docs/google-play/PLAY_RELEASE_CHECKLIST.zh-CN.md)
 
 ### 许可证
 
@@ -94,69 +58,32 @@ Debug 构建：
 
 ### Highlights
 
-- Supports both qBittorrent WebUI API (4.x / 5.x compatible) and Transmission RPC
-- Multi-server profiles with fast switching and isolated cached snapshots
-- Home dashboard with realtime upload/download speed curves and stacked server cards
-- Server dashboard charts for country, category, tag, tracker-site (pie chart), and state distribution
-- Torrent list filtering by state, category, and tag in three independent rows
-- Torrent list search, sorting, return-to-item positioning, and quick jump-to-top
-- Torrent detail tabs for Info, Trackers, Peers, and Files
-- Tracker copy, edit, delete, and passkey show/hide controls
-- Reannounce, recheck, category/tag updates, speed limits, ratio, and other common actions
-- File tree browsing with folder-first navigation and improved foreground/background restore
-- Share magnet links from browser or other apps directly to the client
-- Download completion notification with vibration
-- Home screen widget showing realtime global upload/download speed and torrent count
-- Chinese and English localization, custom themes, Google Play assets, and adaptive launcher icons
+-Simultaneous support for qBittorrent WebUI API (5.x compatible) and Transmission RPC
+-Multi-server configuration saving, fast switching, and independent cache snapshots
+-Homepage with real-time upload/download speed curves for all servers and server card overview
+-Server dashboard charts, including Country, Category, Tag, Site (pie charts), and Status distribution
+-Torrent list with independent three-row filtering by Status, Category, and Tags
+-Torrent list search, sorting, cross-page return positioning, and quick scroll to top
+-Torrent details page with four tabs: Info, Trackers, Peers, and Files
+-Tracker copy, edit, delete, and passkey hide/show functionality
+-Common operations such as re-announce, recheck, category/tag modification, speed limiting, ratio management, etc.
+-Chinese and English languages, local themes, Google Play assets, and adaptive icons
+-When multiple servers are online, the "Speed Limit Settings" popup adds a server dropdown at the top, allowing easy switching of the target server
 
-### Current Release
 
-- App name: `TorrentRemote`
-- Application ID: `com.hjw.qbremote`
-- Version: `0.1.15`
-- Version code: `16`
-- Min SDK: `26`
-- Target / Compile SDK: `35`
 
 ### Supported Backends
 
 - qBittorrent WebUI API (4.x / 5.x)
 - Transmission RPC
 
-### Build and Release
-
-This repository ships with a bundled Android toolchain under `tools/android-build/`.
-
-Debug build:
-
-```powershell
-.\gradlew.bat assembleDebug
-```
-
-Google Play release AAB with the fixed signing key:
-
-```powershell
-.\scripts\build-release-aab.ps1
-```
-
-Signed release APK:
-
-```powershell
-.\gradlew.bat assembleRelease
-```
-
-Key outputs:
-
-- Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Release APK: `app/build/outputs/apk/release/app-release.apk`
-- Release AAB: `app/build/outputs/bundle/release/app-release.aab`
-- Distribution folder: `release-artifacts/`
-
-### Google Play Assets
-
-- 512 icon PNG: `play-assets/icon/qbitremote-play-icon-512.png`
-- 1024 source PNG: `play-assets/icon/qbitremote-play-icon-1024.png`
-- Release checklist: [Google Play Release Checklist (zh-CN)](docs/google-play/PLAY_RELEASE_CHECKLIST.zh-CN.md)
+### 应用截图
+<img width="1440" height="2954" alt="9e7edcde8823ab772e32722a665f51fc" src="https://github.com/user-attachments/assets/f34713cc-6aff-4f5b-8558-b88ee3846f5f" />
+<img width="1440" height="2954" alt="17883453a80b6f82b64301b65b591f44" src="https://github.com/user-attachments/assets/c96e7356-ebd3-4d79-abe2-85921a2bf6df" />
+<img width="1440" height="2954" alt="60f8c21eb4bd5b9d18058b53542b595d" src="https://github.com/user-attachments/assets/73fedb29-8718-4205-b535-84f1b8a02e1a" />
+<img width="1440" height="2954" alt="54a7437b29c8429ed50cc7d20f23fc4b" src="https://github.com/user-attachments/assets/475f3886-a69d-4249-ba14-69e0db7e605c" />
+<img width="1440" height="2954" alt="66db519789dd33d10fbd7907fedf5232" src="https://github.com/user-attachments/assets/2cf7ad26-b5af-46dc-82bd-324efa372c00" />
+<img width="1440" height="2954" alt="c2db987ef558bafdb4664a4ec3ae8250" src="https://github.com/user-attachments/assets/6ad4c09e-a6c0-487e-9def-b1efe9f078ea" />
 
 ### License
 
